@@ -1,69 +1,67 @@
-import '../utils/helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BookReview {
-  final String text;
+  final String id; // ID của document đánh giá
   final int rating;
-  final DateTime date;
-  final int bookId;
-  final int mId;
-  final String mFirstName;
-  final String mLastName;
-  final String mImageUrl;
+  final String review;
+  final String userId;
+  final String userName;
+  final String? userImageUrl;
+  final DateTime createdAt;
 
-  const BookReview({
-    required this.text,
+  BookReview({
+    required this.id,
     required this.rating,
-    required this.date,
-    required this.bookId,
-    required this.mId,
-    required this.mFirstName,
-    required this.mLastName,
-    required this.mImageUrl,
+    required this.review,
+    required this.userId,
+    required this.userName,
+    this.userImageUrl,
+    required this.createdAt,
   });
 
-  factory BookReview.fromJson(Map<String, dynamic> json) {
+  // PHƯƠNG THỨC MỚI: Dùng để đọc dữ liệu từ Firestore
+  factory BookReview.fromFirestore(
+      DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    final data = snapshot.data()!;
     return BookReview(
-      text: json['text'] as String,
-      rating: json['rating'] as int,
-      date: Helper.dateDeserializer(json['date']) ?? DateTime.now(),
-      bookId: json['bookId'] as int,
-      mId: json['mId'] as int,
-      mFirstName: json['mFirstName'] as String,
-      mLastName: json['mLastName'] as String,
-      mImageUrl: json['mImageUrl'] as String,
+      id: snapshot.id,
+      rating: data['rating'] as int,
+      review: data['review'] as String,
+      userId: data['userId'] as String,
+      // Các trường về user có thể được lưu trực tiếp trong review
+      // hoặc bạn có thể cần một lệnh truy vấn khác để lấy thông tin này.
+      // Giả định chúng được lưu cùng review cho đơn giản.
+      userName: data['userName'] as String? ?? 'Người dùng ẩn danh',
+      userImageUrl: data['userImageUrl'] as String?,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
 
-  Map<String, dynamic> toJson() {
-    // Sửa lỗi nghiêm trọng: Trả về một map được khởi tạo trực tiếp
-    return {
-      'text': text,
-      'rating': rating,
-      'date': Helper.dateSerializer(date),
-      'bookId': bookId,
-      'mId': mId,
-      'mFirstName': mFirstName,
-      'mLastName': mLastName,
-      'mImageUrl': mImageUrl,
-    };
+  // PHƯƠNG THỨC CŨ: Dùng cho backend Oracle
+  factory BookReview.fromJson(Map<String, dynamic> json) {
+    return BookReview(
+      id: json['br_id'].toString(),
+      rating: json['br_rating'] as int,
+      review: json['br_review'] as String,
+      userId: json['m_id'].toString(),
+      userName: json['m_first_name'] + ' ' + json['m_last_name'],
+      userImageUrl: json['m_image_url'],
+      // Giả sử ngày tạo là ngày hiện tại vì không có trong JSON cũ
+      createdAt: DateTime.now(),
+    );
   }
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is BookReview &&
-              runtimeType == other.runtimeType &&
-              text == other.text &&
-              date == other.date &&
-              bookId == other.bookId &&
-              mId == other.mId;
-
-  @override
-  int get hashCode =>
-      text.hashCode ^ date.hashCode ^ bookId.hashCode ^ mId.hashCode;
-
-  @override
-  String toString() {
-    return 'BookReview{text: $text, rating: $rating, date: $date, bookId: $bookId, mId: $mId, mFirstName: $mFirstName, mLastName: $mLastName}';
+  // CẬP NHẬT: Dùng để ghi dữ liệu lên Firestore
+  Map<String, dynamic> toJson() {
+    return {
+      'rating': rating,
+      'review': review,
+      'userId': userId,
+      'userName': userName,
+      'userImageUrl': userImageUrl,
+      'createdAt': createdAt,
+      // Thường thì bookId cũng được lưu ở đây để dễ truy vấn
+      // 'bookId': bookId,
+    };
   }
 }

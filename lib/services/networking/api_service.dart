@@ -6,7 +6,7 @@ import '../../utils/enums/endpoint_enum.dart';
 
 class ApiService {
   final String _baseUrl =
-      "https://mvzo6ikn6kswnep-db202010291259.adb.me-dubai-1.oraclecloudapps.com/ords/lms/";
+      "https://apex.oracle.com/pls/apex/dev_oracle/lms";
   final HttpService _httpService = HttpService();
 
   ApiService._();

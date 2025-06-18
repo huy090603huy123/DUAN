@@ -30,7 +30,7 @@ class GenreBooksScreen extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
                       child: Text(
-                        "Genres",
+                        "Kho Sản Phẩm",
                         style: Theme.of(context).textTheme.headlineLarge,
                       ),
                     ),

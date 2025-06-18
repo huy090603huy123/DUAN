@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../ui/screens/issues/loan_list_screen.dart';
+import '../../ui/screens/issues/return_history_screen.dart';
 import '../../ui/screens/login_screen.dart';
 import '../../ui/screens/home_screen.dart';
 import '../../ui/screens/primary/book_collections_screen.dart';
@@ -13,7 +15,9 @@ import '../../ui/screens/secondary/author_details_screen.dart';
 import '../../ui/screens/secondary/author_books_screen.dart';
 import '../../ui/screens/secondary/book_details_screen.dart';
 
-enum PageType { HOME, COLLECTIONS, GENRES, AUTHOR, BOOK, AUTHORBOOKS, BOOKSHELF, AUTHORGALLERY, MEMBERPREFS, PROFILE, LOGIN }
+enum PageType { HOME, COLLECTIONS, GENRES, AUTHOR, BOOK, AUTHORBOOKS, BOOKSHELF, AUTHORGALLERY, MEMBERPREFS, PROFILE, LOGIN,LOAN_LIST,
+  RETURN_HISTORY,
+  ISSUE_DETAILS, }
 
 extension ActivePage on PageType {
   String get name => describeEnum(this);
@@ -42,6 +46,12 @@ extension ActivePage on PageType {
         return MemberProfileScreen();
       case PageType.LOGIN:
         return LoginScreen();
+      case PageType.LOAN_LIST:
+      // Import loan_list_screen.dart
+        return const LoanListScreen();
+      case PageType.RETURN_HISTORY:
+      // Import return_history_screen.dart
+        //return const ReturnHistoryScreen();
       default:
         return BookCollectionsScreen();
     }

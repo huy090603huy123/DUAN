@@ -44,7 +44,7 @@ class BookCollectionsSheet extends StatelessWidget {
             const SizedBox(height: 15),
 
             //New collections title
-            buildCollectionName("New Collections", context),
+            buildCollectionName("SẢN PHẨM MỚI", context),
 
             const SizedBox(height: 10),
 
@@ -76,7 +76,7 @@ class BookCollectionsSheet extends StatelessWidget {
             const SizedBox(height: 20),
 
             //Top Rated title
-            buildCollectionName("Top Rated", context),
+            buildCollectionName("SẢN PHẨM NỔI BẬT", context),
 
             const SizedBox(height: 10),
 

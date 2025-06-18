@@ -37,7 +37,7 @@ class BottomNavBar extends StatelessWidget {
             //Icon 1
             BarItem(
               icon: Icons.library_books_outlined,
-              label: "Home",
+              label: "Trang Chủ",
               page: PageType.COLLECTIONS,
               pageController: pageController,
             ),
@@ -45,7 +45,7 @@ class BottomNavBar extends StatelessWidget {
             //Icon 2
             BarItem(
               icon: Icons.menu_book_outlined,
-              label: "Library",
+              label: "Kho",
               page: PageType.GENRES,
               pageController: pageController,
             ),
@@ -53,7 +53,7 @@ class BottomNavBar extends StatelessWidget {
             //Icon 3
             BarItem(
               icon: Icons.person_pin_outlined,
-              label: "Authors",
+              label: "Hãng",
               page: PageType.AUTHORGALLERY,
               pageController: pageController,
             ),
@@ -61,7 +61,7 @@ class BottomNavBar extends StatelessWidget {
             //Icon 4
             BarItem(
               icon: Icons.book_outlined,
-              label: "Bookshelf",
+              label: "Kho Mượn",
               page: PageType.BOOKSHELF,
               pageController: pageController,
             ),
@@ -69,7 +69,7 @@ class BottomNavBar extends StatelessWidget {
             //Icon 5
             BarItem(
               icon: Icons.person_outline,
-              label: "Profile",
+              label: "Hồ Sơ",
               page: PageType.PROFILE,
               pageController: pageController,
             ),

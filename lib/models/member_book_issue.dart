@@ -1,81 +1,65 @@
-
-
-import '../utils/helper.dart';
-import '../utils/enums/book_issue_status_enum.dart';
-import 'book_copy.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MemberBookIssue {
-  final int issueId;
-  final int mId;
-  final BookCopy bookCopy;
-  final DateTime issueDate;
-  final DateTime dueDate;
-  // Sửa lỗi logic: Ngày trả sách có thể là null nếu sách chưa được trả.
-  final DateTime? returnedDate;
+  final String id;
+  final String bookId;
+  final String userId;
   final String bookName;
-  final String authorName;
   final String bookImageUrl;
+  final String authorName; // ĐÃ THÊM
+  final DateTime issueDate;
+  final DateTime? returnDate;
+  final DateTime? dueDate;    // ĐÃ THÊM
 
-  const MemberBookIssue({
-    required this.issueId,
-    required this.mId,
-    required this.bookCopy,
-    required this.issueDate,
-    required this.dueDate,
-    this.returnedDate, // Không 'required' vì có thể null
+  /// Trạng thái được lưu dưới dạng String: 'ISSUED', 'RETURNED', 'OVERDUE'
+  final String status;
+
+  MemberBookIssue({
+    required this.id,
+    required this.bookId,
+    required this.userId,
     required this.bookName,
-    required this.authorName,
     required this.bookImageUrl,
+    required this.authorName, // ĐÃ THÊM
+    required this.issueDate,
+    this.returnDate,
+    this.dueDate, // ĐÃ THÊM
+    required this.status,
   });
 
-  factory MemberBookIssue.fromJson(Map<String, dynamic> json) {
+  factory MemberBookIssue.fromFirestore(
+      DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    final data = snapshot.data()!;
     return MemberBookIssue(
-      issueId: json['issue_id'] as int,
-      mId: json['m_id'] as int,
-      bookCopy: BookCopy(copyId: json['copy_id'], bkId: json['bk_id']),
-      issueDate: Helper.dateDeserializer(json['date']) ?? DateTime.now(),
-      dueDate: Helper.dateDeserializer(json['date']) ?? DateTime.now(),
-      bookName: json['bk_name'] as String,
-      authorName: json['a_name'] as String,
-      bookImageUrl: json['bk_image_url'] as String,
-      // Logic xử lý null đã đúng, chỉ cần truyền vào constructor mới
-      returnedDate:
-      json['returned_date'] != null ? Helper.dateDeserializer(json['returned_date']) : null,
+      id: snapshot.id,
+      bookId: data['bookId'] as String? ?? '',
+      userId: data['userId'] as String? ?? '',
+      bookName: data['bookName'] as String? ?? 'Unknown Book',
+      bookImageUrl: data['bookImageUrl'] as String? ?? '',
+      // Giả định các trường này được thêm vào khi tạo lượt mượn
+      authorName: data['authorName'] as String? ?? 'Unknown Author',
+      issueDate: (data['issueDate'] as Timestamp).toDate(),
+      returnDate: data['returnDate'] != null
+          ? (data['returnDate'] as Timestamp).toDate()
+          : null,
+      dueDate: data['dueDate'] != null
+          ? (data['dueDate'] as Timestamp).toDate()
+          : null,
+      status: data['status'] as String? ?? 'ISSUED',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'issue_id': issueId,
-      'm_id': mId,
-      'bk_id': bookCopy.bkId,
-      'copy_id': bookCopy.copyId,
-      'bk_name': bookName,
-      'a_name': authorName,
-      'bk_image_url': bookImageUrl,
-      'issue_date': issueDate,
-      'due_date': dueDate,
-      'returned_date': returnedDate,
+      'bookId': bookId,
+      'userId': userId,
+      'bookName': bookName,
+      'bookImageUrl': bookImageUrl,
+      'authorName': authorName,
+      'issueDate': issueDate,
+      'returnDate': returnDate,
+      'dueDate': dueDate,
+      'status': status,
     };
-  }
-
-  BookIssueStatus get status {
-    // Logic này giờ hoàn toàn an toàn với kiểu dữ liệu nullable
-    if (returnedDate != null) return BookIssueStatus.RETURNED;
-    if (dueDate.isBefore(DateTime.now())) return BookIssueStatus.OVERDUE;
-    return BookIssueStatus.DUE;
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is MemberBookIssue && runtimeType == other.runtimeType && issueId == other.issueId;
-
-  @override
-  int get hashCode => issueId.hashCode;
-
-  @override
-  String toString() {
-    return 'MemberBookIssue{issueId: $issueId, mId: $mId, bookCopy: $bookCopy, issueDate: $issueDate, dueDate: $dueDate, returnedDate: $returnedDate, bookName: $bookName, authorName: $authorName}';
   }
 }

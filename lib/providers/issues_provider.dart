@@ -1,89 +1,87 @@
-import 'dart:collection';
-
+// lib/providers/issues_provider.dart
 import 'package:flutter/material.dart';
+import 'package:warehouse/services/repositories/data_repository.dart';
+import 'package:warehouse/models/member_book_issue.dart';
 
-import '../services/repositories/data_repository.dart';
-
-import '../utils/helper.dart';
-
-import '../models/book_copy.dart';
-import '../models/book_details.dart';
-import '../models/member_book_issue.dart';
+import '../models/book.dart';
 
 class IssuesProvider with ChangeNotifier {
   final DataRepository _dataRepository;
+  final String userId; // Provider này giờ cần userId để hoạt động
 
-  final Map<int, MemberBookIssue> _memberIssues = Map();
+  IssuesProvider({
+    required DataRepository dataRepository,
+    required this.userId,
+  }) : _dataRepository = dataRepository;
 
-  final int currentMId;
-
-  // CopyID: MemberBookIssue
-  UnmodifiableMapView<int, MemberBookIssue> get memberIssuesMap => UnmodifiableMapView(_memberIssues);
-
-  UnmodifiableListView<MemberBookIssue> get memberIssues => UnmodifiableListView(_memberIssues.values.toList().reversed);
-
-  IssuesProvider({@required dataRepository, required this.currentMId}) : _dataRepository = dataRepository {
-    //TODO: Fetch m_id from authProvider
-    _initializeMemberBookIssues();
-  }
-
-  void _initializeMemberBookIssues() {
-    _dataRepository.memberBookIssuesStream(id: currentMId).listen((mBIssues) {
-      mBIssues.forEach((issue) => _memberIssues[issue.bookCopy.copyId] = issue);
-      notifyListeners();
-    });
-  }
-
-  /*List<MemberBookIssue> getBookMemberIssues(int bkId) {
-    List<MemberBookIssue> bMIssues=[];
-    _dataRepository.bookMemberIssuesStream(id: bkId).listen((bMIssues) {
-      bMIssues.forEach(bMIssues.add);
-    });
-    return bMIssues;
-  }*/
-
-  Future<int> _getAvailableBookCopy(int bookId) async {
-    await for(List<BookCopy> bookCopies in _dataRepository.bookCopiesStream(id: bookId)){
-      for(BookCopy bookCopy in bookCopies){
-        if(_memberIssues.containsKey(bookCopy.copyId)) continue;
-        int count = await _dataRepository.copyIssuesCount(id: bookCopy.copyId);
-        if (count == 0) return bookCopy.copyId;
-      }
+  // Cung cấp một stream các lượt mượn sách của người dùng
+  Stream<List<MemberBookIssue>> get memberBookIssuesStream {
+    if (userId == null) {
+      // Trả về một stream rỗng nếu không có userId
+      return Stream.value([]);
     }
-    return -1;
+    return _dataRepository.memberBookIssues(userId!);
   }
 
-  //Books are issued for a month by default
-  Future<bool> issueBook(int bkId, BookDetails bookDetails, {int monthsIssued = 1}) async {
-    int copyId = await _getAvailableBookCopy(bkId);
-    print("Available copy: $copyId");
-    if (copyId == -1) return false;
-    final issueDate = DateTime.now();
-    final dueDate = issueDate.add(Duration(days: 30 * monthsIssued));
-    print(Helper.dateSerializer(issueDate));
-    //Response data
-    final issueId = await _dataRepository.addBookIssue(data: {
-      "m_id": currentMId,
-      "copy_id": copyId,
-      "issue_date": Helper.dateSerializer(issueDate),
-      "due_date": Helper.dateSerializer(dueDate),
-    });
+  Future<bool> issueBook({
+    required String bookId,
+    required String userId,
+    required Book bookDetails, // Cần thông tin sách để lưu lại
+  }) async {
 
-    //MemberBookIssue Object added to map
-    _memberIssues[copyId] = MemberBookIssue(
-      bookName: bookDetails.book.name,
-      authorName: "${bookDetails.authors[0].firstName} ${bookDetails.authors[0].lastName}",
-      bookImageUrl: bookDetails.book.imageUrl,
-      issueId: issueId,
-      mId: currentMId,
-      bookCopy: BookCopy(bkId: bkId, copyId: copyId),
-      issueDate: issueDate,
-      dueDate: dueDate,
-      returnedDate: null,
-    );
+    // Logic kiểm tra xem sách còn bản sao để mượn hay không (có thể thêm sau)
+    //...
 
-    notifyListeners();
-    print(_memberIssues[copyId]);
-    return true;
+    try {
+      final issueData = {
+        'userId': userId,
+        'bookId': bookId,
+        'bookName': bookDetails.name,
+        'bookImageUrl': bookDetails.imageUrl,
+        'authorName': 'Tên tác giả', // Tạm thời, cần lấy từ bookDetails.authors
+        'issueDate': DateTime.now(),
+        // Tính ngày hết hạn, ví dụ 1 tháng
+        'dueDate': DateTime.now().add(const Duration(days: 30)),
+        'returnDate': null,
+        'status': 'DUE', // Trạng thái ban đầu là "Tới hạn"
+      };
+      // Giả sử bạn có phương thức này trong DataRepository để thêm document
+      await _dataRepository.addIssue(issueData);
+      return true;
+    } catch (e) {
+      print("Lỗi khi mượn sách: $e");
+      return false;
+    }
   }
+
+
+  // Hàm để trả sách
+
+  Future<bool> returnBook({
+    required String issueId,
+    required String bookId,
+    required int rating,
+    required String review,
+  }) async {
+    if (userId == null || userId!.isEmpty) {
+      print("Lỗi: Không có ID người dùng để trả sách.");
+      return false;
+    }
+    try {
+      await _dataRepository.returnBook(
+        issueId: issueId,
+        bookId: bookId,
+        userId: userId!,
+        rating: rating,
+        review: review,
+      );
+      return true;
+    } catch (e) {
+      print("Lỗi khi trả sách: $e");
+      return false;
+    }
+  }
+
+
+
 }

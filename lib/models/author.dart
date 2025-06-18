@@ -1,61 +1,49 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:warehouse/utils/helper.dart';
+
 class Author {
-  final int id;
-  final int age;
-  final int rating;
+  final String id;
   final String firstName;
   final String lastName;
-  final String country;
-  final String imageUrl;
+  final String? country;
+  final int rating;
+  final String? imageUrl;
+  final int age; // THÊM MỚI
 
-  // Sử dụng constructor với cú pháp 'this' để khởi tạo trực tiếp
-  // Thêm 'required' để đảm bảo các tham số này phải được cung cấp
   Author({
     required this.id,
     required this.firstName,
     required this.lastName,
-    required this.age,
-    required this.country,
+    this.country,
     required this.rating,
-    required this.imageUrl,
+    this.imageUrl,
+    required this.age, // THÊM MỚI
   });
 
-  // Không cần getter tường minh nữa vì các thuộc tính đã public
-  // Dart sẽ tự tạo getter cho các thuộc tính public final
+  String get authorName => '$firstName $lastName';
+  String get authorInitials => Helper.getInitials(fullName: authorName);
 
-  factory Author.fromJson(Map<String, dynamic> json) {
+  factory Author.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    final data = snapshot.data()!;
     return Author(
-      id: json['a_id'] as int,
-      firstName: json['a_first_name'] as String,
-      lastName: json['a_last_name'] as String,
-      age: json['a_age'] as int,
-      country: json['a_country'] as String,
-      rating: json['a_rating'] as int,
-      imageUrl: json['a_image_url'] as String,
+      id: snapshot.id,
+      firstName: data['firstName'] as String,
+      lastName: data['lastName'] as String,
+      country: data['country'] as String?,
+      rating: data['rating'] as int,
+      imageUrl: data['imageUrl'] as String?,
+      age: data['age'] as int? ?? 0, // THÊM MỚI (xử lý trường hợp null)
     );
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['a_id'] = id;
-    data['a_first_name'] = firstName;
-    data['a_last_name'] = lastName;
-    data['a_age'] = age;
-    data['a_country'] = country;
-    data['a_rating'] = rating;
-    data['a_image_url'] = imageUrl;
-    return data;
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is Author && runtimeType == other.runtimeType && id == other.id;
-
-  @override
-  int get hashCode => id.hashCode;
-
-  @override
-  String toString() {
-    return 'Author{id: $id, age: $age, firstName: $firstName, lastName: $lastName, country: $country}';
+    return {
+      'firstName': firstName,
+      'lastName': lastName,
+      'country': country,
+      'rating': rating,
+      'imageUrl': imageUrl,
+      'age': age, // THÊM MỚI
+    };
   }
 }

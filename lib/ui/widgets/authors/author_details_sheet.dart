@@ -185,7 +185,7 @@ class AuthorDetailsSheet extends StatelessWidget {
                           const SizedBox(height: 2),
 
                           //Book ratings
-                          Ratings(rating: books[i].rating, size: 18),
+                          Ratings(rating: books[i].rating, itemSize: 18),
                         ],
                       ),
                     ),

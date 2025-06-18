@@ -1,90 +1,73 @@
 import 'dart:collection';
-
 import 'package:flutter/material.dart';
-
-import '../services/repositories/data_repository.dart';
-
 import '../models/genre.dart';
+import '../services/repositories/data_repository.dart';
 
 class GenresProvider with ChangeNotifier {
   final DataRepository _dataRepository;
 
-  GenresProvider({@required dataRepository}) : _dataRepository = dataRepository {
+  // THAY ĐỔI 1: Chuyển sang Map<String, Genre> để khớp với ID của Firestore.
+  final Map<String, Genre> _genres = {};
+
+  // Sử dụng một List để đảm bảo thứ tự và truy cập an toàn qua index.
+  List<Genre> _genreList = [];
+
+  int _activeIndex = 0;
+
+  // Cập nhật cú pháp constructor
+  GenresProvider({required DataRepository dataRepository})
+      : _dataRepository = dataRepository {
     _initializeData();
   }
 
-  final Map<int, Genre> _genres = Map();
+  // --- GETTERS: Cung cấp dữ liệu cho UI một cách an toàn ---
 
-  UnmodifiableMapView<int, Genre> get genresMap => UnmodifiableMapView(_genres);
+  /// Trả về một danh sách các thể loại không thể bị thay đổi từ bên ngoài.
+  UnmodifiableListView<Genre> get genres => UnmodifiableListView(_genreList);
 
-  UnmodifiableListView<Genre> get genres => UnmodifiableListView(_genres.values);
-
-  int get activeGenreId => genres[_activeIndex].id;
-
-  void _initializeData() {
-    _initializeGenresMap();
+  /// Lấy ID của thể loại đang được người dùng chọn.
+  String? get activeGenreId {
+    if (_genreList.isNotEmpty && _activeIndex < _genreList.length) {
+      return _genreList[_activeIndex].id;
+    }
+    return null;
   }
 
-  void _initializeGenresMap() {
-    _dataRepository.genresStream().listen((genres) {
-      genres.forEach((genre) => _genres[genre.id] = genre);
+  /// Lấy index của thể loại đang được chọn.
+  int get activeIndex => _activeIndex;
+
+
+  // --- METHODS: Các hàm xử lý logic ---
+
+  /// Khởi tạo dữ liệu bằng cách lắng nghe stream từ DataRepository.
+  void _initializeData() {
+    _dataRepository.genresStream().listen((genresFromRepo) {
+      _genres.clear();
+      for (var genre in genresFromRepo) {
+        _genres[genre.id] = genre; // `genre.id` bây giờ là String.
+      }
+
+      // Cập nhật lại danh sách có thứ tự từ Map.
+      _genreList = _genres.values.toList();
+
+      // Thông báo cho các widget đang lắng nghe để chúng build lại giao diện.
       notifyListeners();
     });
   }
 
-  int _activeIndex = 0;
-
-  int get activeIndex => _activeIndex;
-
+  /// Kiểm tra xem một index có phải là index đang được chọn hay không.
   bool isActiveIndex(int i) => _activeIndex == i;
 
-  setActiveIndex(int newIndex) {
-    _activeIndex = newIndex;
-    notifyListeners();
+  /// Cập nhật lại index đang được chọn (ví dụ: khi người dùng nhấn vào một genre khác).
+  void setActiveIndex(int newIndex) {
+    if (newIndex >= 0 && newIndex < _genreList.length) {
+      _activeIndex = newIndex;
+      notifyListeners();
+    }
   }
 
-  Future<List<Genre>> getBookGenres(int bkId) async {
-    List<Genre> bookGenres = [];
-    await for (List<int> genreIds in _dataRepository.bookGenresStream(id: bkId)) {
-      for (var gId in genreIds) {
-        // Lấy genre từ map
-        final genre = _genres[gId];
-        // KIỂM TRA NULL TRƯỚC KHI ADD
-        if (genre != null) {
-          bookGenres.add(genre);
-        }
-      }
-    }
-    return bookGenres;
-  }
-
-  Future<List<Genre>> getAuthorGenres(int aId) async {
-    List<Genre> authorGenres = [];
-    await for (List<int> genreIds in _dataRepository.authorGenresStream(id: aId)) {
-      for (var gId in genreIds) {
-        // Lấy genre từ map
-        final genre = _genres[gId];
-        // KIỂM TRA NULL TRƯỚC KHI ADD
-        if (genre != null) {
-          authorGenres.add(genre);
-        }
-      }
-    }
-    return authorGenres;
-  }
-
-  Future<List<Genre>> getMemberGenres(int mId) async {
-    List<Genre> memberGenres = [];
-    await for (List<int> genreIds in _dataRepository.memberGenresStream(id: mId)) {
-      for (var gId in genreIds) {
-        // Lấy genre từ map
-        final genre = _genres[gId];
-        // KIỂM TRA NULL TRƯỚC KHI ADD
-        if (genre != null) {
-          memberGenres.add(genre);
-        }
-      }
-    }
-    return memberGenres;
-  }
+// THAY ĐỔI 2: Tất cả các phương thức getBookGenres, getAuthorGenres, getMemberGenres
+// đã được xóa bỏ khỏi đây. Logic của chúng đã được chuyển sang các provider
+// chi tiết hơn như BookDetailsProvider để đảm bảo mỗi provider có một
+// trách nhiệm duy nhất.
 }
