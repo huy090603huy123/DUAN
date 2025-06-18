@@ -8,7 +8,6 @@ import '../../../models/author.dart';
 class TopAuthorsList extends StatelessWidget {
   final List<Author> authors;
 
-  // SỬA LỖI: Cập nhật cú pháp constructor cho đúng chuẩn null safety.
   const TopAuthorsList({
     super.key,
     required this.authors,
@@ -29,42 +28,51 @@ class TopAuthorsList extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         scrollDirection: Axis.horizontal,
         itemCount: authors.length,
-        itemBuilder: (ctx, i) => Padding(
-          padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
-          child: InkWell(
-            onTap: () {
-              Helper.navigateToPage(
-                context: context,
-                page: PageType.AUTHOR,
-                arguments: authors[i].id,
-              );
-            },
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  // Thêm errorBuilder để xử lý lỗi tải ảnh
-                  onBackgroundImageError: (exception, stackTrace) {
-                    // Bạn có thể log lỗi ở đây nếu cần
-                  },
-                  backgroundImage: NetworkImage(authors[i].imageUrl),
-                  // Fallback trong trường hợp ảnh lỗi hoặc không có
-                  child: (authors[i].imageUrl.isEmpty)
-                      ? const Icon(Icons.person, size: 40)
-                      : null,
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  "${authors[i].firstName}\n${authors[i].lastName}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
+        itemBuilder: (ctx, i) {
+          final author = authors[i];
+          // SỬA LỖI 1: Tạo một biến để kiểm tra imageUrl một cách an toàn
+          final imageUrl = author.imageUrl;
+          final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
+
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
+            child: InkWell(
+              onTap: () {
+                Helper.navigateToPage(
+                  context: context,
+                  page: PageType.AUTHOR,
+                  arguments: author.id,
+                );
+              },
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.grey.shade300, // Màu nền dự phòng
+                    // SỬA LỖI 2: Chỉ tạo NetworkImage khi có URL hợp lệ
+                    backgroundImage: hasImage ? NetworkImage(imageUrl) : null,
+                    // SỬA LỖI 3: Hiển thị Icon nếu không có ảnh
+                    child: !hasImage
+                        ? const Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Colors.white,
+                    )
+                        : null,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 5),
+                  Text(
+                    author.authorName, // Sử dụng getter cho gọn
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

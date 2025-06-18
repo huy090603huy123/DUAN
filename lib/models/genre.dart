@@ -1,30 +1,40 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Genre {
-  /// The unique identifier for the genre.
-  final int id;
+  /// The unique identifier for the genre from Firestore.
+  final String id;
 
   /// The name of the genre (e.g., "Science Fiction", "Fantasy").
   final String name;
 
-  /// Creates a constant Genre object.
-  /// Both [id] and [name] are required.
-  const Genre({
+  /// Creates a Genre object.
+  Genre({
     required this.id,
     required this.name,
   });
 
-  /// Creates a Genre instance from a JSON map.
+  // PHƯƠNG THỨC MỚI: Dùng để đọc dữ liệu từ Firestore
+  factory Genre.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    final data = snapshot.data()!;
+    return Genre(
+      id: snapshot.id,
+      name: data['name'] as String,
+    );
+  }
+
+  /// Creates a Genre instance from a JSON map (for the old Oracle backend).
+  /// You can keep this for reference or remove it.
   factory Genre.fromJson(Map<String, dynamic> json) {
     return Genre(
-      id: json['g_id'] as int,
+      id: json['g_id'].toString(), // Convert to String to be consistent
       name: json['g_name'] as String,
     );
   }
 
-  /// Converts this Genre instance into a JSON map.
+  /// CẬP NHẬT: Dùng để ghi dữ liệu lên Firestore
   Map<String, dynamic> toJson() {
     return {
-      'g_id': id,
-      'g_name': name,
+      'name': name,
     };
   }
 

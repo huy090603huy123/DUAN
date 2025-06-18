@@ -19,7 +19,7 @@ class AuthorsGalleryScreen extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
                 child: Text(
-                  "Authors",
+                  "Các Hãng",
                   style: Theme.of(context).textTheme.headlineLarge,
                 ),
               ),

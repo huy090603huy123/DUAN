@@ -1,38 +1,35 @@
+// lib/providers/reviews_provider.dart
 import 'package:flutter/material.dart';
-
-import '../services/repositories/data_repository.dart';
-
-import '../models/book_review.dart';
-import '../models/author_review.dart';
+import 'package:warehouse/services/repositories/data_repository.dart';
 
 class ReviewsProvider with ChangeNotifier {
   final DataRepository _dataRepository;
 
-  ReviewsProvider({@required dataRepository}) : _dataRepository = dataRepository;
+  ReviewsProvider({required DataRepository dataRepository})
+      : _dataRepository = dataRepository;
 
-  Future<List<BookReview>> getBookReviews(int bkId) async {
-    List<BookReview> bookReviews=[];
-    //Future based
-    await for (List<BookReview> bkReviews in _dataRepository.bookReviewsStream(id: bkId)) {
-      bookReviews.addAll(bkReviews);
-    }
-    //Stream based
-    // _dataRepository.bookReviewsStream(id: bkId).listen((bkReviews) {
-    //   bookReviews.addAll(bkReviews);
-    // });
-    return bookReviews;
+  // Hàm để đăng một bài đánh giá sách
+  Future<void> postBookReview({
+    required String bookId,
+    required String userId,
+    required int rating,
+    required String review,
+  }) async {
+    // Logic này có thể phức tạp và nên được xử lý bằng một giao dịch (transaction)
+    // trong DataRepository để đảm bảo tính nhất quán (cập nhật rating trung bình của sách).
+    // await _dataRepository.postBookReview(...);
+    print('Đăng review sách: $bookId, rating: $rating');
   }
 
-  Future<List<AuthorReview>> getAuthorReviews(int aId) async {
-    List<AuthorReview> authorReviews=[];
-    //Future based
-    await for (List<AuthorReview> aReviews in _dataRepository.authorReviewsStream(id: aId)) {
-      authorReviews.addAll(aReviews);
-    }
-    //Stream based
-    // _dataRepository.bookReviewsStream(id: bkId).listen((bkReviews) {
-    //   bookReviews.addAll(bkReviews);
-    // });
-    return authorReviews;
+  // Hàm để đăng một bài đánh giá tác giả
+  Future<void> postAuthorReview({
+    required String authorId,
+    required String userId,
+    required int rating,
+    required String review,
+  }) async {
+    // Tương tự, nên dùng transaction trong DataRepository
+    // await _dataRepository.postAuthorReview(...);
+    print('Đăng review tác giả: $authorId, rating: $rating');
   }
 }

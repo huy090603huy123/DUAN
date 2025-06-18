@@ -1,20 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
-// Giả định rằng các file này tồn tại và không có lỗi bên trong.
+import 'package:firebase_core/firebase_core.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'services/data_seeder.dart';
+import 'firebase_options.dart';
 import 'services/repositories/data_repository.dart';
-import 'providers/author_details_provider.dart';
-import 'providers/book_details_provider.dart';
 import 'providers/bottom_nav_bar_provider.dart';
 import 'providers/genres_provider.dart';
 import 'providers/publishes_provider.dart';
-import 'providers/reviews_provider.dart';
-import 'providers/issues_provider.dart';
 import 'providers/members_provider.dart';
+import 'providers/issues_provider.dart';
+import 'ui/screens/home_screen.dart';
+import 'ui/screens/login_screen.dart';
+import 'utils/enums/status_enum.dart';
+import 'ui/screens/admin/admin_home_screen.dart';
 import 'utils/enums/page_type_enum.dart';
+import 'ui/screens/primary/book_collections_screen.dart';
+import 'ui/screens/primary/genre_books_screen.dart';
+import 'ui/screens/primary/authors_gallery_screen.dart';
+import 'ui/screens/primary/member_bookshelf_screen.dart';
+import 'ui/screens/primary/member_profile_screen.dart';
+import 'ui/screens/secondary/book_details_screen.dart';
+import 'ui/screens/secondary/author_details_screen.dart';
+import 'ui/screens/member_genres_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await initializeDateFormatting('vi_VN', null);
+  await DataSeeder().seedDatabase();
   runApp(const MyApp());
 }
 
@@ -23,10 +40,75 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Cung cấp MembersProvider cho toàn bộ cây widget con.
-    return ChangeNotifierProvider<MembersProvider>(
-      create: (_) => MembersProvider(dataRepository: DataRepository.instance),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => MembersProvider(dataRepository: DataRepository.instance),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => BottomNavBarProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => GenresProvider(dataRepository: DataRepository.instance),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => PublishesProvider(dataRepository: DataRepository.instance),
+        ),
+        ChangeNotifierProxyProvider<MembersProvider, IssuesProvider>(
+          create: (context) => IssuesProvider(
+            dataRepository: DataRepository.instance,
+            userId: '',
+          ),
+          update: (context, membersProvider, previousIssuesProvider) {
+            final userId = membersProvider.member?.id ?? '';
+            if (previousIssuesProvider?.userId != userId) {
+              return IssuesProvider(
+                dataRepository: DataRepository.instance,
+                userId: userId,
+              );
+            }
+            return previousIssuesProvider!;
+          },
+        ),
+      ],
       child: const InitialApp(),
+    );
+  }
+}
+
+class GradientScaffold extends StatelessWidget {
+  final Widget body;
+  final PreferredSizeWidget? appBar;
+  final Widget? bottomNavigationBar;
+  final Widget? floatingActionButton;
+
+  const GradientScaffold({
+    super.key,
+    required this.body,
+    this.appBar,
+    this.bottomNavigationBar,
+    this.floatingActionButton,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: appBar,
+      bottomNavigationBar: bottomNavigationBar,
+      floatingActionButton: floatingActionButton,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF2E7D32), // Deep green at top
+              Color(0xFFF1F8E9), // Light green at bottom
+            ],
+          ),
+        ),
+        child: body,
+      ),
     );
   }
 }
@@ -36,160 +118,85 @@ class InitialApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Lắng nghe trạng thái đăng nhập từ MembersProvider.
     return Consumer<MembersProvider>(
       builder: (_, auth, __) {
-        // Nếu người dùng chưa đăng nhập, hiển thị màn hình Login.
-        if (!auth.loggedIn) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Library App',
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              primaryColor: Colors.blue[800],
-              textTheme: TextTheme(
-                displayLarge: GoogleFonts.literata(
-                  textStyle: const TextStyle(
-                    fontSize: 50,
-                    letterSpacing: .5,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                headlineLarge: GoogleFonts.literata(
-                  textStyle: const TextStyle(
-                    fontSize: 30,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                titleLarge: GoogleFonts.openSans(
-                  textStyle: TextStyle(
-                    fontSize: 20,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-              ),
-              visualDensity: VisualDensity.adaptivePlatformDensity,
-              scaffoldBackgroundColor: Colors.blue[800],
-              fontFamily: GoogleFonts.openSans().fontFamily,
-              iconTheme: IconThemeData(color: Colors.grey[800]),
-            ),
-            home: PageType.LOGIN.getRoute(),
-          );
-        }
-        // Nếu đã đăng nhập, hiển thị ứng dụng chính.
-        return MainApp(membersProvider: auth);
+        final themeData = _buildThemeData(context);
+
+        final uniqueKey = ValueKey(auth.member?.id ?? 'loggedOut');
+
+        return MaterialApp(
+          key: uniqueKey,
+          debugShowCheckedModeBanner: false,
+          title: 'Library App',
+          theme: themeData,
+          home: _getHomeScreen(auth),
+          routes: {
+            '/admin': (context) => const GradientScaffold(body: AdminHomeScreen()),
+            PageType.HOME.name: (_) => GradientScaffold(body: HomeScreen()),
+            PageType.LOGIN.name: (_) => const GradientScaffold(body: LoginScreen()),
+            PageType.COLLECTIONS.name: (_) => const GradientScaffold(body: BookCollectionsScreen()),
+            PageType.GENRES.name: (_) => GradientScaffold(body: GenreBooksScreen()),
+            PageType.AUTHORGALLERY.name: (_) => GradientScaffold(body: AuthorsGalleryScreen()),
+            PageType.BOOKSHELF.name: (_) => const GradientScaffold(body: MemberBookshelfScreen()),
+            PageType.PROFILE.name: (_) => const GradientScaffold(body: MemberProfileScreen()),
+            PageType.BOOK.name: (_) => const GradientScaffold(body: BookDetailsScreen()),
+            PageType.AUTHOR.name: (_) => const GradientScaffold(body: AuthorDetailsScreen()),
+            PageType.MEMBERPREFS.name: (_) => const GradientScaffold(body: MemberGenresScreen()),
+          },
+        );
       },
     );
   }
-}
 
-class MainApp extends StatelessWidget {
-  final MembersProvider membersProvider;
+  Widget _getHomeScreen(MembersProvider auth) {
+    if (auth.status == Status.LOADING || auth.status == Status.INITIAL) {
+      return const GradientScaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-  const MainApp({
-    super.key,
-    required this.membersProvider,
-  });
+    if (auth.isLoggedIn) {
+      if (auth.isAdmin) {
+        return const GradientScaffold(body: AdminHomeScreen());
+      } else {
+        return GradientScaffold(body: HomeScreen());
+      }
+    }
+    return const GradientScaffold(body: LoginScreen());
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<BottomNavBarProvider>(create: (_) => BottomNavBarProvider()),
-        ChangeNotifierProvider<GenresProvider>(
-          create: (_) => GenresProvider(dataRepository: DataRepository.instance),
-        ),
-        ChangeNotifierProvider<PublishesProvider>(
-            create: (_) => PublishesProvider(dataRepository: DataRepository.instance)),
-        ChangeNotifierProvider<ReviewsProvider>(
-          create: (_) => ReviewsProvider(dataRepository: DataRepository.instance),
-        ),
-        ChangeNotifierProxyProvider3<PublishesProvider, GenresProvider, ReviewsProvider,
-            BookDetailsProvider>(
-          create: (_) => BookDetailsProvider(
-            publishesProvider: PublishesProvider(dataRepository: DataRepository.instance),
-            genresProvider: GenresProvider(dataRepository: DataRepository.instance),
-            reviewsProvider: ReviewsProvider(dataRepository: DataRepository.instance),
-          ),
-          update: (_, pProv, gProv, rProv, prevBkDetails) => BookDetailsProvider(
-            publishesProvider: pProv,
-            genresProvider: gProv,
-            reviewsProvider: rProv,
+  ThemeData _buildThemeData(BuildContext context) {
+    return ThemeData(
+      primarySwatch: Colors.green,
+      primaryColor: Colors.green[900], // Dark green for primary elements
+      textTheme: TextTheme(
+        displayLarge: GoogleFonts.literata(
+          textStyle: const TextStyle(
+            fontSize: 50,
+            letterSpacing: .5,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
           ),
         ),
-        ChangeNotifierProxyProvider3<PublishesProvider, GenresProvider, ReviewsProvider,
-            AuthorDetailsProvider>(
-          create: (_) => AuthorDetailsProvider(
-            publishesProvider: PublishesProvider(dataRepository: DataRepository.instance),
-            genresProvider: GenresProvider(dataRepository: DataRepository.instance),
-            reviewsProvider: ReviewsProvider(dataRepository: DataRepository.instance),
-          ),
-          update: (_, pProv, gProv, rProv, prevBkDetails) => AuthorDetailsProvider(
-            publishesProvider: pProv,
-            genresProvider: gProv,
-            reviewsProvider: rProv,
+        headlineLarge: GoogleFonts.literata(
+          textStyle: const TextStyle(
+            fontSize: 30,
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
           ),
         ),
-        ChangeNotifierProvider<IssuesProvider>(
-          // SỬA LỖI: Thêm dấu '!' để khẳng định currentMId không phải là null.
-          // Điều này an toàn vì widget này chỉ được build khi người dùng đã đăng nhập.
-          create: (_) => IssuesProvider(
-              dataRepository: DataRepository.instance, currentMId: membersProvider.currentMId!),
-        ),
-      ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Library App',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          primaryColor: Colors.blue[800],
-          textTheme: TextTheme(
-            displayLarge: GoogleFonts.literata(
-              textStyle: const TextStyle(
-                fontSize: 50,
-                letterSpacing: .5,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            headlineLarge: GoogleFonts.literata(
-              textStyle: const TextStyle(
-                fontSize: 30,
-                letterSpacing: 1.5,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            titleLarge: GoogleFonts.openSans(
-              textStyle: TextStyle(
-                fontSize: 20,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
+        titleLarge: GoogleFonts.openSans(
+          textStyle: TextStyle(
+            fontSize: 20,
+            color: Colors.green[900], // Match title color to primary
           ),
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-          scaffoldBackgroundColor: Colors.blue[800],
-          fontFamily: GoogleFonts.openSans().fontFamily,
-          iconTheme: IconThemeData(color: Colors.grey[800]),
         ),
-        initialRoute: PageType.HOME.name,
-        routes: {
-          PageType.HOME.name: (_) => PageType.HOME.getRoute(),
-          PageType.COLLECTIONS.name: (_) => PageType.COLLECTIONS.getRoute(),
-          PageType.GENRES.name: (_) => PageType.GENRES.getRoute(),
-          PageType.AUTHOR.name: (_) => PageType.AUTHOR.getRoute(),
-          PageType.MEMBERPREFS.name: (_) => PageType.MEMBERPREFS.getRoute(),
-          PageType.AUTHORGALLERY.name: (_) => PageType.AUTHORGALLERY.getRoute(),
-          PageType.AUTHORBOOKS.name: (_) => PageType.AUTHORBOOKS.getRoute(),
-          PageType.BOOK.name: (_) => PageType.BOOK.getRoute(),
-          PageType.BOOKSHELF.name: (_) => PageType.BOOKSHELF.getRoute(),
-          PageType.PROFILE.name: (_) => PageType.PROFILE.getRoute(),
-          PageType.LOGIN.name: (_) => PageType.LOGIN.getRoute(),
-        },
       ),
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      scaffoldBackgroundColor: Colors.transparent, // Transparent to allow gradient
+      fontFamily: GoogleFonts.openSans().fontFamily,
+      iconTheme: IconThemeData(color: Colors.grey[800]),
     );
   }
 }

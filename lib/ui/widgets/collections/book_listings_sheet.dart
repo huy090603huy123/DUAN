@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../providers/genres_provider.dart';
-
-// Giả sử các file này tồn tại và không có lỗi
 import '../common/search_textfield.dart';
 import '../books/genres_books_list.dart';
 
 class BookListingsSheet extends StatefulWidget {
   final PageController genreController;
 
-  // SỬA LỖI: Cập nhật cú pháp constructor cho đúng chuẩn null safety.
   const BookListingsSheet({
     super.key,
     required this.genreController,
@@ -33,6 +30,15 @@ class _BookListingsSheetState extends State<BookListingsSheet> {
   Widget build(BuildContext context) {
     final genreProvider = Provider.of<GenresProvider>(context);
 
+    // Kiểm tra nếu danh sách genres rỗng thì hiển thị widget chờ
+    if (genreProvider.genres.isEmpty) {
+      return const Expanded(
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Expanded(
       child: Container(
         decoration: const BoxDecoration(
@@ -46,8 +52,6 @@ class _BookListingsSheetState extends State<BookListingsSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-
-            //Search Field
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: SearchTextField(
@@ -58,20 +62,17 @@ class _BookListingsSheetState extends State<BookListingsSheet> {
                 onChanged: (val) => setState(() {}),
               ),
             ),
-
             const SizedBox(height: 20),
-
-            //Books list
             Expanded(
               child: PageView.builder(
                 controller: widget.genreController,
                 itemCount: genreProvider.genres.length,
                 onPageChanged: genreProvider.setActiveIndex,
                 itemBuilder: (ctx, i) {
-                  // Cải thiện logic: Truyền ID của genre tương ứng với trang hiện tại
                   final genre = genreProvider.genres[i];
+                  // SỬA LỖI: Đổi tên tham số từ 'gId' thành 'genreId'
                   return GenreBooksList(
-                    gId: genre.id,
+                    genreId: genre.id,
                     searchTerm: _textEditingController.text.trim(),
                   );
                 },

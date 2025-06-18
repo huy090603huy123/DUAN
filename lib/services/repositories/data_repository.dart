@@ -1,272 +1,311 @@
-import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:warehouse/models/author.dart';
+import 'package:warehouse/models/book.dart';
+import 'package:warehouse/models/book_details.dart';
+import 'package:warehouse/models/book_review.dart';
+import 'package:warehouse/models/genre.dart';
+import 'package:warehouse/models/member.dart'; // Đổi tên thành User hoặc giữ nguyên nếu muốn
+import 'package:warehouse/models/member_book_issue.dart';
 
-import '../networking/api_service.dart';
+// Giả định rằng bạn đã cập nhật các model của mình với phương thức `fromFirestore`
+// Ví dụ: Book.fromFirestore(doc), Author.fromFirestore(doc), ...
 
-import '../../utils/enums/endpoint_enum.dart';
-
-import 'interface_data_repository.dart';
-
-import '../../models/author.dart';
-import '../../models/book.dart';
-import '../../models/genre.dart';
-import '../../models/member.dart';
-import '../../models/author_review.dart';
-import '../../models/book_review.dart';
-import '../../models/member_author_review.dart';
-import '../../models/member_book_review.dart';
-import '../../models/book_copy.dart';
-import '../../models/member_book_issue.dart';
-
-class DataRepository implements IDataRepository {
+class DataRepository {
   DataRepository._();
+  static final DataRepository instance = DataRepository._();
 
-  /// Singleton instance of a DataRepository class.
-  static final instance = DataRepository._();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  final ApiService _apiService = ApiService.instance;
+  // --- PHƯƠNG THỨC XÁC THỰC (AUTH) ---
+
+  // Lấy stream trạng thái đăng nhập của người dùng
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // Lấy người dùng hiện tại
+  User? get currentUser => _auth.currentUser;
+
+  Future<UserCredential> signInWithEmail(
+      {required String email, required String password}) {
+    return _auth.signInWithEmailAndPassword(email: email, password: password);
+  }
+
+  Future<UserCredential> signUpWithEmail(
+      {required String email, required String password}) {
+    return _auth.createUserWithEmailAndPassword(
+        email: email, password: password);
+  }
+
+  Future<void> signOut() {
+    return _auth.signOut();
+  }
+
+  // --- PHƯƠNG THỨC QUẢN LÝ NGƯỜI DÙNG (MEMBERS/USERS) ---
+
+  // Tạo thông tin người dùng trong collection 'users' sau khi đăng ký
+  Future<void> createUserProfile(
+      {required String uid, required Map<String, dynamic> data}) {
+    return _firestore.collection('users').doc(uid).set(data);
+  }
+
+  // Lấy thông tin chi tiết của một người dùng
+  Future<Member?> getUserProfile(String uid) {
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .get()
+        .then((snapshot) {
+      if (snapshot.exists) {
+        // Giả sử model Member có fromFirestore
+        return Member.fromFirestore(snapshot);
+      }
+      return null;
+    });
+  }
+
+  // Cập nhật thông tin người dùng
+  Future<void> updateUserProfile(
+      {required String uid, required Map<String, dynamic> data}) {
+    return _firestore.collection('users').doc(uid).update(data);
+  }
+
+  // --- PHƯƠNG THỨC QUẢN LÝ SÁCH (BOOKS) ---
 
   Stream<List<Book>> booksStream() {
-    return _apiService.collectionStream<Book>(
-      endPoint: EndPoint.BOOKS,
-      builder: (data) => Book.fromJson(data),
-    );
+    return _firestore.collection('books').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList();
+    });
   }
 
-  Stream<List<Author>> authorsStream() {
-    return _apiService.collectionStream<Author>(
-      endPoint: EndPoint.AUTHORS,
-      builder: (data) => Author.fromJson(data),
-    );
+  Stream<Book> bookDetailsStream(String bookId) {
+    return _firestore
+        .collection('books')
+        .doc(bookId)
+        .snapshots()
+        .map((doc) => Book.fromFirestore(doc));
   }
+
+  Future<void> setBook(Map<String, dynamic> data) {
+    return _firestore.collection('books').add(data);
+  }
+
+  Future<void> editBook({required String bookId, required Map<String, dynamic> data}) {
+    return _firestore.collection('books').doc(bookId).update(data);
+  }
+
+
+
+  // --- PHƯƠNG THỨC QUẢN LÝ THỂ LOẠI (GENRES) ---
 
   Stream<List<Genre>> genresStream() {
-    return _apiService.collectionStream<Genre>(
-      endPoint: EndPoint.GENRES,
-      builder: (data) => Genre.fromJson(data),
-    );
+    return _firestore.collection('genres').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Genre.fromFirestore(doc)).toList();
+    });
   }
 
-  Stream<List<Member>> membersStream() {
-    return _apiService.collectionStream<Member>(
-      endPoint: EndPoint.MEMBERS,
-      builder: (data) => Member.fromJson(data),
-    );
+  // Lấy sách thuộc về một thể loại cụ thể
+  // Giả định model 'books' có một trường mảng 'genreIds'
+  Stream<List<Book>> genreBooksStream(String genreId) {
+    return _firestore
+        .collection('books')
+        .where('genreIds', arrayContains: genreId)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
   }
 
-  Stream<Author> authorStream({required int id}) {
-    return _apiService.documentStream(
-      endPoint: EndPoint.AUTHORS,
-      id: id.toString(),
-      builder: (data) => Author.fromJson(data),
-    );
+
+  // --- PHƯƠNG THỨC QUẢN LÝ TÁC GIẢ (AUTHORS) ---
+
+  Stream<List<Author>> authorsStream() {
+    return _firestore.collection('authors').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Author.fromFirestore(doc)).toList();
+    });
   }
 
-  Stream<Book> bookStream({required int id}) {
-    return _apiService.documentStream(
-      endPoint: EndPoint.BOOKS,
-      id: id.toString(),
-      builder: (data) => Book.fromJson(data),
-    );
+  Stream<Author> authorDetailsStream(String authorId) {
+    return _firestore
+        .collection('authors')
+        .doc(authorId)
+        .snapshots()
+        .map((doc) => Author.fromFirestore(doc));
   }
 
-  Stream<Member> memberStream({required int id}) {
-    return _apiService.documentStream(
-      endPoint: EndPoint.MEMBERS,
-      id: id.toString(),
-      builder: (data) => Member.fromJson(data),
-    );
+  // --- PHƯƠNG THỨC QUẢN LÝ MƯỢN/TRẢ SÁCH (ISSUES) ---
+
+  // Lấy danh sách sách mà một người dùng đã mượn
+  Stream<List<MemberBookIssue>> memberBookIssues(String userId) {
+    return _firestore
+        .collection('book_issues')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => MemberBookIssue.fromFirestore(doc))
+        .toList());
   }
 
-  // This fetches a list of ids which are used in the provider to
-  // look for relevant object instances. This provides type safety.
-  // Alternate: Can also return a Map of provided details and use
-  // it directly in UI.
-
-  Stream<List<int>> genreAuthorsStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.GENRE_AUTHORS,
-      id: id.toString(),
-      builder: (data) => data["a_id"],
-    );
+  // Mượn một cuốn sách
+  Future<void> issueBook(Map<String, dynamic> data) {
+    // data nên chứa: bookId, userId, issueDate, dueDate, status ('ISSUED')
+    return _firestore.collection('book_issues').add(data);
   }
 
-  Stream<List<int>> genreBooksStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.GENRE_BOOKS,
-      id: id.toString(),
-      builder: (data) => data["bk_id"],
-    );
+
+
+  // Trả sách và để lại đánh giá (sử dụng Batched Write để đảm bảo tính toàn vẹn)
+  Future<void> returnBook({
+    required String issueId,
+    required String bookId,
+    required String userId,
+    required int rating,
+    required String review,
+  }) async {
+    final WriteBatch batch = _firestore.batch();
+
+    // 1. Cập nhật trạng thái của lượt mượn sách
+    final issueRef = _firestore.collection('book_issues').doc(issueId);
+    batch.update(issueRef, {
+      'status': 'RETURNED',
+      'returnDate': Timestamp.now(),
+    });
+
+    // 2. Thêm một bài đánh giá mới cho sách
+    final reviewRef = _firestore.collection('book_reviews').doc();
+    batch.set(reviewRef, {
+      'bookId': bookId,
+      'userId': userId,
+      'rating': rating,
+      'review': review,
+      'createdAt': Timestamp.now(),
+    });
+
+    if (review.isNotEmpty || rating > 0) {
+      final reviewRef = _firestore.collection('book_reviews').doc();
+      batch.set(reviewRef, {
+        'bookId': bookId,
+        'userId': userId,
+        'rating': rating,
+        'review': review,
+        'createdAt': Timestamp.now(),
+      });
+    }
+    // 3. Cập nhật rating trung bình của sách (sử dụng FieldValue.increment)
+    final bookRef = _firestore.collection('books').doc(bookId);
+    batch.update(bookRef, {
+      'totalRatings': FieldValue.increment(rating),
+      'reviewCount': FieldValue.increment(1),
+    });
+    // Lưu ý: Bạn sẽ cần tính rating trung bình trên client hoặc bằng Cloud Function.
+    // Ví dụ: (totalRatings + rating) / (reviewCount + 1)
+
+    // Thực thi tất cả các thao tác
+    await batch.commit();
   }
 
-  Stream<List<int>> genreMembersStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.GENRE_MEMBERS,
-      id: id.toString(),
-      builder: (data) => data["m_id"],
-    );
+  // --- PHƯƠNG THỨC ĐÁNH GIÁ (REVIEWS) ---
+
+  // Lấy tất cả đánh giá của một cuốn sách
+  Stream<List<BookReview>> bookReviews(String bookId) {
+    return _firestore
+        .collection('book_reviews')
+        .where('bookId', isEqualTo: bookId)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => BookReview.fromFirestore(doc)).toList());
+  }
+  Future<List<Author>> getAuthorsByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final List<Author> authors = [];
+    // Firestore chỉ cho phép truy vấn 'whereIn' với tối đa 10 phần tử
+    // Chúng ta sẽ chia nhỏ danh sách ID để xử lý
+    for (var i = 0; i < ids.length; i += 10) {
+      final sublist = ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10);
+      final querySnapshot = await _firestore
+          .collection('authors')
+          .where(FieldPath.documentId, whereIn: sublist)
+          .get();
+      authors.addAll(
+          querySnapshot.docs.map((doc) => Author.fromFirestore(doc)).toList());
+    }
+    return authors;
   }
 
-  /// Returns a list of genre Ids which are used in provider to
-  /// search and retrieve a list of Genre objects.
-  /// Alternate: Can also return a Map or a list of genre names
-
-  Stream<List<int>> authorGenresStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.AUTHOR_GENRES,
-      id: id.toString(),
-      builder: (data) => data["g_id"],
-    );
+  // Lấy nhiều thể loại dựa trên danh sách các ID
+  Future<List<Genre>> getGenresByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final List<Genre> genres = [];
+    for (var i = 0; i < ids.length; i += 10) {
+      final sublist = ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10);
+      final querySnapshot = await _firestore
+          .collection('genres')
+          .where(FieldPath.documentId, whereIn: sublist)
+          .get();
+      genres.addAll(
+          querySnapshot.docs.map((doc) => Genre.fromFirestore(doc)).toList());
+    }
+    return genres;
+  }
+  Stream<List<Book>> getBooksByAuthorId(String authorId) {
+    return _firestore
+        .collection('books')
+        .where('authorIds', arrayContains: authorId)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
+  }
+  Stream<List<Book>> getBooksByGenreId(String genreId) {
+    return _firestore
+        .collection('books')
+        .where('genreIds', arrayContains: genreId)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
+  }
+  Future<void> addIssue(Map<String, dynamic> data) {
+    return _firestore.collection('book_issues').add(data);
+  }
+  Stream<List<Book>> getTop5NewBooks() {
+    return _firestore
+        .collection('books')
+        .orderBy('publishedDate', descending: true)
+        .limit(5)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
   }
 
-  Stream<List<int>> bookGenresStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.BOOK_GENRES,
-      id: id.toString(),
-      builder: (data) => data["g_id"],
-    );
+  /// Lấy 5 cuốn sách được đánh giá cao nhất.
+  Stream<List<Book>> getTop5RatedBooks() {
+    return _firestore
+        .collection('books')
+        .orderBy('rating', descending: true)
+        .limit(5)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
   }
 
-  Stream<List<int>> memberGenresStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.MEMBER_PREFERENCES,
-      id: id.toString(),
-      builder: (data) => data["g_id"],
-    );
+
+
+  Future<void> addBook(Map<String, dynamic> data) async {
+    await _firestore.collection('books').add(data);
   }
 
-  Stream<List<AuthorReview>> authorReviewsStream({required int id}) {
-    return _apiService.collectionStream<AuthorReview>(
-      endPoint: EndPoint.AUTHOR_REVIEWS,
-      id: id.toString(),
-      builder: (data) => AuthorReview.fromJson(data),
-    );
+  /// Cập nhật thông tin cho một cuốn sách đã có dựa trên ID.
+  Future<void> updateBook(String bookId, Map<String, dynamic> data) async {
+    await _firestore.collection('books').doc(bookId).update(data);
   }
 
-  Stream<List<BookReview>> bookReviewsStream({required int id}) {
-    return _apiService.collectionStream<BookReview>(
-      endPoint: EndPoint.BOOK_REVIEWS,
-      id: id.toString(),
-      builder: (data) => BookReview.fromJson(data),
-    );
+  /// Xóa một cuốn sách khỏi Firestore dựa trên ID.
+  Future<void> deleteBook(String bookId) async {
+    await _firestore.collection('books').doc(bookId).delete();
   }
 
-  Stream<List<MemberBookReview>> memberBookReviewsStream({required int id}) {
-    return _apiService.collectionStream<MemberBookReview>(
-      endPoint: EndPoint.MEMBER_BOOK_REVIEWS,
-      id: id.toString(),
-      builder: (data) => MemberBookReview.fromJson(data),
-    );
-  }
 
-  Stream<List<MemberAuthorReview>> memberAuthorReviewsStream({required int id}) {
-    return _apiService.collectionStream<MemberAuthorReview>(
-      endPoint: EndPoint.MEMBER_AUTHOR_REVIEWS,
-      id: id.toString(),
-      builder: (data) => MemberAuthorReview.fromJson(data),
-    );
-  }
 
-  Stream<List<int>> bookAuthorsStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.BOOK_AUTHORS,
-      id: id.toString(),
-      builder: (data) => data["a_id"],
-    );
-  }
 
-  Stream<List<int>> authorBooksStream({required int id}) {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.AUTHOR_BOOKS,
-      id: id.toString(),
-      builder: (data) => data["bk_id"],
-    );
-  }
 
-  Stream<List<int>> top5RatedBooksStream() {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.TOP5RATED_BOOKS,
-      builder: (data) => data["bk_id"],
-    );
-  }
 
-  Stream<List<int>> top5NewBooksStream() {
-    return _apiService.collectionStream<int>(
-      endPoint: EndPoint.TOP5NEW_BOOKS,
-      builder: (data) => data["bk_id"],
-    );
-  }
-
-  Stream<List<MemberBookIssue>> bookMemberIssuesStream({required int id}) {
-    return _apiService.collectionStream<MemberBookIssue>(
-      endPoint: EndPoint.BOOK_MEMBER_ISSUES,
-      id: id.toString(),
-      builder: (data) => MemberBookIssue.fromJson(data),
-    );
-  }
-
-  Stream<List<MemberBookIssue>> memberBookIssuesStream({required int id}) {
-    return _apiService.collectionStream<MemberBookIssue>(
-      endPoint: EndPoint.MEMBER_BOOK_ISSUES,
-      id: id.toString(),
-      builder: (data) => MemberBookIssue.fromJson(data),
-    );
-  }
-
-  Stream<List<BookCopy>> bookCopiesStream({required int id}) {
-    return _apiService.collectionStream<BookCopy>(
-      endPoint: EndPoint.BOOK_COPIES,
-      id: id.toString(),
-      builder: (data) => BookCopy.fromJson(data),
-    );
-  }
-
-  Future<int> copyIssuesCount({required int id}) async {
-    return await _apiService.documentFuture<int>(
-      endPoint: EndPoint.COPY_ISSUES_COUNT,
-      id: id.toString(),
-      builder: (data) => data["count_issues"],
-    );
-  }
-
-  Future<int> addBookIssue({required Map<String, dynamic> data}) async {
-    return await _apiService.setData(
-      endPoint: EndPoint.BOOK_COPIES_ISSUES,
-      data: data,
-      builder: (response) => response["issue_id"],
-    );
-  }
-
-  Future<int> createAccount({required Map<String, dynamic> data}) async {
-    return await _apiService.setData(
-      endPoint: EndPoint.MEMBERS,
-      data: data,
-      builder: (response) => response["m_id"],
-    );
-  }
-
-  Future<int> changeAccountData({required Map<String, dynamic> data, required int id}) async {
-    print(data);
-    return await _apiService.updateData(
-      endPoint: EndPoint.MEMBERS,
-      id: id.toString(),
-      data: data,
-      builder: (response) => response["m_id"],
-    );
-  }
-
-  Future<int> changeMemberPreferences({required Map<String, dynamic> data}) async {
-    return await _apiService.setData(
-      endPoint: EndPoint.MEMBER_PREFS_TABLE,
-      data: data,
-      builder: (response) => response["m_id"],
-    );
-  }
-
-  Future<void> deleteMemberPreferences({required String id}) async {
-    return await _apiService.deleteData(
-      endPoint: EndPoint.MEMBER_PREFS_TABLE,
-      id: id,
-      builder: (response) => response["rowsDeleted"],
-    );
-  }
+// (Tương tự, bạn có thể tạo các phương thức cho author_reviews)
 }

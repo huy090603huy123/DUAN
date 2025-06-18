@@ -1,74 +1,74 @@
-import 'package:flutter/foundation.dart';
-
-import '../utils/helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:warehouse/utils/helper.dart';
 
 class Book {
-  final int id;
+  final String id; // ID của document trong Firestore
   final String name;
   final int rating;
   final String bio;
   final String imageUrl;
-  // Thay đổi: publishedDate có thể là null (DateTime?)
   final DateTime? publishedDate;
+  // Thêm các trường để lưu trữ ID của các document liên quan
+  final List<String> authorIds;
+  final List<String> genreIds;
 
-  const Book({
+  Book({
     required this.id,
     required this.name,
     required this.rating,
     required this.bio,
     required this.imageUrl,
-    this.publishedDate, // Không 'required' nữa vì có thể null
+    this.publishedDate,
+    this.authorIds = const [],
+    this.genreIds = const [],
   });
 
-  factory Book.initialData() {
+  String get bookInitials => Helper.getInitials(fullName: name);
+
+  // PHƯƠNG THỨC MỚI: Dùng để đọc dữ liệu từ Firestore
+  factory Book.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    final data = snapshot.data()!;
     return Book(
-      id: 0,
-      name: '',
-      imageUrl: Helper.bookPlaceholder,
-      publishedDate: null, // Bây giờ hợp lệ vì publishedDate là nullable
-      rating: 0,
-      bio: '',
+      id: snapshot.id,
+      name: data['name'] ?? '',
+      rating: data['rating'] ?? 0,
+      bio: data['bio'] ?? '',
+      imageUrl: data['imageUrl'] ?? Helper.bookPlaceholder,
+      publishedDate: data['publishedDate'] != null
+          ? (data['publishedDate'] as Timestamp).toDate()
+          : null,
+      // Đọc mảng các ID, chuyển đổi từ List<dynamic> thành List<String>
+      authorIds: List<String>.from(data['authorIds'] ?? []),
+      genreIds: List<String>.from(data['genreIds'] ?? []),
     );
   }
 
-  factory Book.fromJson(Map<String, dynamic> json) {
+  // PHƯƠG THỨC CŨ: Dùng cho backend Oracle (có thể xóa đi)
+  factory Book.fromJson(Map<String, dynamic> data) {
     return Book(
-      id: json['bk_id'] as int,
-      name: json['bk_name'] as String,
-      rating: json['bk_rating'] as int,
-      bio: json['bk_bio'] as String,
-      imageUrl: json['bk_image_url'] as String,
-      // Xử lý giá trị có thể null từ JSON
-      publishedDate: json["bk_published_date"] == null
+      id: data['bk_id'].toString(),
+      name: data['bk_name'],
+      rating: data['bk_rating'],
+      bio: data['bk_bio'],
+      imageUrl: data['bk_image_url'] ?? Helper.bookPlaceholder,
+      publishedDate: data['bk_published_date'] == null
           ? null
-          : Helper.dateDeserializer(json["bk_published_date"]),
+          : DateTime.parse(
+        data['bk_published_date'],
+      ),
     );
   }
 
+  // CẬP NHẬT: Dùng để ghi dữ liệu lên Firestore
   Map<String, dynamic> toJson() {
     return {
-      'bk_id': id,
-      'bk_name': name,
-      'bk_rating': rating,
-      'bk_bio': bio,
-      'bk_image_url': imageUrl,
-      // Xử lý giá trị có thể null khi chuyển thành JSON
-      'bk_published_date': publishedDate == null
-          ? null
-          : Helper.dateSerializer(publishedDate!),
+      'name': name,
+      'rating': rating,
+      'bio': bio,
+      'imageUrl': imageUrl,
+      'publishedDate': publishedDate,
+      'authorIds': authorIds,
+      'genreIds': genreIds,
     };
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is Book && runtimeType == other.runtimeType && id == other.id;
-
-  @override
-  int get hashCode => id.hashCode;
-
-  @override
-  String toString() {
-    return 'Book{id: $id, name: $name, rating: $rating, publishedDate: $publishedDate}';
   }
 }
