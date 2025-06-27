@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:warehouse/models/author.dart';
 import 'package:warehouse/models/book.dart';
-import 'package:warehouse/models/genre.dart';
-import 'package:warehouse/models/book_review.dart';
 import 'package:warehouse/providers/members_provider.dart';
 import 'package:warehouse/services/repositories/data_repository.dart';
 import 'package:warehouse/utils/enums/status_enum.dart';
@@ -39,14 +36,16 @@ class BookDetailsScreen extends StatelessWidget {
             bookId: bookId,
           ),
         ),
+        // Sử dụng ChangeNotifierProxyProvider để đảm bảo IssuesProvider luôn có userId mới nhất
         ChangeNotifierProxyProvider<MembersProvider, IssuesProvider>(
+          // Lấy userId từ MembersProvider. Dùng listen: false trong create.
           create: (context) => IssuesProvider(
             dataRepository: DataRepository.instance,
-            userId: Provider.of<MembersProvider>(context, listen: false).member!.id,
+            userId: Provider.of<MembersProvider>(context, listen: false).member?.id ?? '',
           ),
           update: (context, membersProvider, _) => IssuesProvider(
             dataRepository: DataRepository.instance,
-            userId: membersProvider.member!.id,
+            userId: membersProvider.member?.id ?? '',
           ),
         ),
       ],
@@ -70,7 +69,8 @@ class BookDetailsScreen extends StatelessWidget {
       case Status.INITIAL:
         return const Center(child: CircularProgressIndicator());
       case Status.ERROR:
-        return const Center(child: Text('Không thể tải chi tiết sách.'));
+      // SỬA LỖI: Thay thế errorMessage không tồn tại bằng một thông báo chung.
+        return const Center(child: Text('Lỗi: Không thể tải chi tiết sách.'));
       case Status.DONE:
         final book = provider.book;
         if (book == null) {
@@ -84,14 +84,24 @@ class BookDetailsScreen extends StatelessWidget {
               const SizedBox(height: 30),
               BookDetailsSheet(
                 bookTitle: book.name,
-                // SỬA LỖI: Sử dụng đúng tên tham số là 'bookAuthor'
-                bookAuthor: provider.authors,
-                bookImageUrl: book.imageUrl ?? Helper.bookPlaceholder,
+                bookAuthor: provider.authors, // Giả sử provider.authors là List<Author>
+                bookImageUrl: book.imageUrl,
                 bookBio: book.bio,
                 bookPublishedDate:
                 Helper.datePresenter(book.publishedDate) ?? 'N/A',
                 bookRating: book.rating,
-                genres: provider.genres,
+                genres: provider.genres, // Giả sử provider.genres là List<Genre>
+              ),
+              // Thêm hiển thị số lượng sách còn lại
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20.0),
+                child: Text(
+                  'Số lượng còn lại: ${book.quantity}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: book.quantity > 0 ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -102,45 +112,52 @@ class BookDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildBottomBar(BuildContext context, BookDetailsProvider provider) {
-    if (provider.status == Status.DONE && provider.book != null) {
-      final book = provider.book!;
-      return BottomButtonBar(
-        label: "MƯỢN SÁCH",
-        onPressed: () async {
-          final issueProvider = Provider.of<IssuesProvider>(context, listen: false);
-          final membersProvider = Provider.of<MembersProvider>(context, listen: false);
+    final book = provider.book;
+    // Vô hiệu hóa nút nếu sách đang tải, không tìm thấy, hoặc đã hết
+    final bool canBorrow = provider.status == Status.DONE && book != null && book.quantity > 0;
 
-          if (!membersProvider.isLoggedIn) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Vui lòng đăng nhập để mượn sách.')),
-            );
-            return;
-          }
+    void handleBorrow() async {
+      final issueProvider = Provider.of<IssuesProvider>(context, listen: false);
+      final membersProvider = Provider.of<MembersProvider>(context, listen: false);
 
-          final bool borrowed = await issueProvider.issueBook(
-            bookId: book.id,
-            userId: membersProvider.member!.id,
-            bookDetails: book,
-            // Tham số 'authors' đã được loại bỏ chính xác
-          );
+      if (!membersProvider.isLoggedIn || membersProvider.member == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng đăng nhập để mượn sách.')),
+        );
+        return;
+      }
 
-          if (!context.mounted) return;
-          showModalBottomSheet(
-            context: context,
-            builder: (_) => _buildBorrowStatusSheet(borrowed),
-          );
-        },
-      );
-    } else {
-      return BottomButtonBar(
-        label: "MƯỢN SÁCH",
-        onPressed: () {},
-        color: Colors.grey.shade400,
+      bool success = false;
+      String message = '';
+
+      try {
+        success = await issueProvider.issueBook(
+          userId: membersProvider.member!.id,
+          bookDetails: book!,
+        );
+        message = "Bạn đã mượn thành công cuốn sách này trong 1 tháng";
+      } catch (e) {
+        success = false;
+        message = e.toString().replaceFirst('Exception: ', ''); // Hiển thị thông báo lỗi thân thiện hơn
+      }
+
+      if (!context.mounted) return;
+      showModalBottomSheet(
+        context: context,
+        builder: (_) => _buildBorrowStatusSheet(success, message),
       );
     }
+
+    return BottomButtonBar(
+      label: canBorrow ? "MƯỢN SÁCH" : "ĐÃ HẾT SÁCH",
+      color: canBorrow ? Theme.of(context).primaryColor : Colors.grey.shade600,
+      // SỬA LỖI: Truyền một hàm rỗng thay vì null để khớp với kiểu VoidCallback
+      onPressed: canBorrow ? handleBorrow : () {},
+    );
   }
 
-  Widget _buildBorrowStatusSheet(bool borrowed) {
+
+  Widget _buildBorrowStatusSheet(bool borrowed, String message) {
     return Container(
       height: 300,
       decoration: const BoxDecoration(
@@ -172,9 +189,7 @@ class BookDetailsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40.0),
             child: Text(
-              borrowed
-                  ? "Bạn đã mượn thành công cuốn sách này trong 1 tháng"
-                  : "Mượn sách thất bại. Sách có thể đã hết.",
+              message, // Hiển thị thông báo nhận được
               style: const TextStyle(fontSize: 21, color: Colors.black),
               textAlign: TextAlign.center,
             ),

@@ -50,15 +50,7 @@ class AppTheme {
       bodyMedium: GoogleFonts.nunito(fontSize: 14.0, color: Colors.grey[800]), // Dùng màu xám rất đậm cho nội dung phụ
       labelLarge: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.bold, color: whiteColor), // Dành cho Button
     ),
-    cardTheme: CardTheme(
-      elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15.0),
-      ),
-      color: cardBackgroundColor,
-      margin: EdgeInsets.zero,
-    ),
+
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: whiteColor,
       selectedItemColor: primaryColor,

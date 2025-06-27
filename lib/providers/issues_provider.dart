@@ -1,9 +1,7 @@
-// lib/providers/issues_provider.dart
 import 'package:flutter/material.dart';
 import 'package:warehouse/services/repositories/data_repository.dart';
 import 'package:warehouse/models/member_book_issue.dart';
-
-import '../models/book.dart';
+import 'package:warehouse/models/book.dart';
 
 class IssuesProvider with ChangeNotifier {
   final DataRepository _dataRepository;
@@ -16,72 +14,88 @@ class IssuesProvider with ChangeNotifier {
 
   // Cung cấp một stream các lượt mượn sách của người dùng
   Stream<List<MemberBookIssue>> get memberBookIssuesStream {
-    if (userId == null) {
-      // Trả về một stream rỗng nếu không có userId
+    // Luôn đảm bảo userId hợp lệ trước khi lắng nghe stream
+    if (userId.isEmpty) {
       return Stream.value([]);
     }
-    return _dataRepository.memberBookIssues(userId!);
+    return _dataRepository.memberBookIssues(userId);
   }
 
+  /// Mượn một cuốn sách và cập nhật số lượng.
+  /// Trả về `true` nếu thành công, `false` nếu thất bại.
   Future<bool> issueBook({
-    required String bookId,
+    required Book bookDetails,
     required String userId,
-    required Book bookDetails, // Cần thông tin sách để lưu lại
   }) async {
+    // --- THAY ĐỔI 1: Logic mượn sách ---
 
-    // Logic kiểm tra xem sách còn bản sao để mượn hay không (có thể thêm sau)
-    //...
+    // Kiểm tra nhanh ở phía client để cải thiện trải nghiệm người dùng.
+    // Việc kiểm tra cuối cùng và đáng tin cậy nhất vẫn nằm trong transaction ở repository.
+    if (bookDetails.quantity <= 0) {
+      print("Lỗi: Sách đã hết hàng.");
+      // Có thể ném ra một Exception cụ thể để UI có thể bắt và hiển thị thông báo đẹp hơn.
+      throw Exception('Sách đã hết, vui lòng quay lại sau.');
+    }
 
     try {
       final issueData = {
         'userId': userId,
-        'bookId': bookId,
+        'bookId': bookDetails.id,
         'bookName': bookDetails.name,
         'bookImageUrl': bookDetails.imageUrl,
-        'authorName': 'Tên tác giả', // Tạm thời, cần lấy từ bookDetails.authors
+        'authorName': 'Tên tác giả', // Tạm thời, cần lấy từ bookDetails.authorIds
         'issueDate': DateTime.now(),
-        // Tính ngày hết hạn, ví dụ 1 tháng
         'dueDate': DateTime.now().add(const Duration(days: 30)),
         'returnDate': null,
         'status': 'DUE', // Trạng thái ban đầu là "Tới hạn"
       };
-      // Giả sử bạn có phương thức này trong DataRepository để thêm document
-      await _dataRepository.addIssue(issueData);
+
+      // Gọi phương thức mới trong repository để thực hiện transaction
+      await _dataRepository.issueBookAndUpdateQuantity(
+        issueData: issueData,
+        bookId: bookDetails.id,
+      );
+
+      notifyListeners(); // Thông báo cho các widget đang lắng nghe để cập nhật UI
       return true;
     } catch (e) {
-      print("Lỗi khi mượn sách: $e");
-      return false;
+      print("Lỗi khi thực hiện giao dịch mượn sách: $e");
+      // Ném lại lỗi để UI có thể xử lý
+      throw Exception('Đã xảy ra lỗi khi mượn sách. Vui lòng thử lại. $e');
     }
   }
 
 
-  // Hàm để trả sách
-
+  /// Trả một cuốn sách và cập nhật số lượng.
+  /// Trả về `true` nếu thành công, `false` nếu thất bại.
   Future<bool> returnBook({
     required String issueId,
     required String bookId,
     required int rating,
     required String review,
   }) async {
-    if (userId == null || userId!.isEmpty) {
+    // --- THAY ĐỔI 2: Logic trả sách ---
+    if (userId.isEmpty) {
       print("Lỗi: Không có ID người dùng để trả sách.");
       return false;
     }
+
     try {
-      await _dataRepository.returnBook(
+      // Gọi phương thức mới trong repository để thực hiện transaction
+      await _dataRepository.returnBookAndUpdateQuantity(
         issueId: issueId,
         bookId: bookId,
-        userId: userId!,
+        userId: userId,
         rating: rating,
         review: review,
       );
+
+      notifyListeners(); // Thông báo cho các widget đang lắng nghe để cập nhật UI
       return true;
     } catch (e) {
-      print("Lỗi khi trả sách: $e");
-      return false;
+      print("Lỗi khi thực hiện giao dịch trả sách: $e");
+      // Ném lại lỗi để UI có thể xử lý
+      throw Exception('Đã xảy ra lỗi khi trả sách. Vui lòng thử lại.');
     }
   }
-
-
-
 }

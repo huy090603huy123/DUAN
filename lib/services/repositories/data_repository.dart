@@ -145,6 +145,97 @@ class DataRepository {
         .toList());
   }
 
+  /// **MỚI: Mượn sách và giảm số lượng tồn kho (sử dụng Transaction).**
+  /// Phương thức này thay thế cho hàm `issueBook` cũ.
+  Future<void> issueBookAndUpdateQuantity({
+    required Map<String, dynamic> issueData,
+    required String bookId,
+  }) {
+    final bookRef = _firestore.collection('books').doc(bookId);
+    final issueRef = _firestore.collection('book_issues').doc(); // Tạo ID mới cho phiếu mượn
+
+    // Một transaction sẽ thực hiện tất cả các thao tác đọc và ghi như một đơn vị duy nhất.
+    // Nếu bất kỳ thao tác nào thất bại, toàn bộ transaction sẽ được hủy bỏ.
+    return _firestore.runTransaction((transaction) async {
+      // 1. Đọc thông tin sách hiện tại
+      final bookSnapshot = await transaction.get(bookRef);
+
+      if (!bookSnapshot.exists) {
+        throw Exception("Sách không tồn tại!");
+      }
+
+      final bookData = bookSnapshot.data();
+      final currentQuantity = bookData?['quantity'] ?? 0;
+
+      // 2. Kiểm tra xem sách còn không
+      if (currentQuantity <= 0) {
+        throw Exception("Sách đã hết hàng!");
+      }
+
+      // 3. Nếu còn, giảm số lượng đi 1 và cập nhật sách
+      transaction.update(bookRef, {'quantity': FieldValue.increment(-1)});
+
+      // 4. Tạo phiếu mượn sách mới
+      transaction.set(issueRef, issueData);
+    });
+  }
+
+
+  /// **CẬP NHẬT: Trả sách, cập nhật số lượng và thêm đánh giá (sử dụng Transaction).**
+  /// Phương thức này thay thế cho hàm `returnBook` cũ.
+  Future<void> returnBookAndUpdateQuantity({
+    required String issueId,
+    required String bookId,
+    required String userId,
+    required int rating,
+    required String review,
+  }) {
+    final bookRef = _firestore.collection('books').doc(bookId);
+    final issueRef = _firestore.collection('book_issues').doc(issueId);
+
+    // Sử dụng transaction để đảm bảo tất cả các cập nhật diễn ra đồng bộ
+    return _firestore.runTransaction((transaction) async {
+      // 1. Cập nhật số lượng sách: Tăng lên 1
+      transaction.update(bookRef, {'quantity': FieldValue.increment(1)});
+
+      // 2. Cập nhật trạng thái của phiếu mượn sách
+      transaction.update(issueRef, {
+        'status': 'RETURNED',
+        'returnDate': Timestamp.now(),
+      });
+
+      // 3. Nếu người dùng có để lại đánh giá hoặc xếp hạng
+      if (review.isNotEmpty || rating > 0) {
+        // Thêm một bài đánh giá mới
+        final reviewRef = _firestore.collection('book_reviews').doc();
+        transaction.set(reviewRef, {
+          'bookId': bookId,
+          'userId': userId,
+          'rating': rating,
+          'review': review,
+          'createdAt': Timestamp.now(),
+        });
+
+        // Cập nhật rating trung bình của sách
+        // Lưu ý: Để tính toán chính xác hơn, bạn có thể cần lưu tổng số sao (totalStars)
+        // và tổng số lượt đánh giá (reviewCount) riêng biệt.
+        transaction.update(bookRef, {
+          // 'totalRatings': FieldValue.increment(rating), // Cân nhắc thêm trường này
+          'rating': rating, // Cập nhật rating tạm thời, cần logic phức tạp hơn cho rating trung bình
+          'reviewCount': FieldValue.increment(1),
+        });
+      }
+    });
+  }
+
+  Stream<List<MemberBookIssue>> allBookIssuesStream() {
+    return _firestore
+        .collection('book_issues')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => MemberBookIssue.fromFirestore(doc))
+        .toList());
+  }
   // Mượn một cuốn sách
   Future<void> issueBook(Map<String, dynamic> data) {
     // data nên chứa: bookId, userId, issueDate, dueDate, status ('ISSUED')
