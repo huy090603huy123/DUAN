@@ -91,7 +91,7 @@ class BookCollectionList extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
-                        book.bio,
+                        book.bio, // Giả sử đây là tên tác giả hoặc mô tả ngắn
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -100,6 +100,31 @@ class BookCollectionList extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(height: 4), // Thêm khoảng trống
+
+                    // *** THÊM MỚI: HIỂN THỊ SỐ LƯỢNG SÁCH ***
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Còn lại: ${book.quantity}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: book.quantity > 0 ? Colors.green.shade700 : Colors.red,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const Spacer(),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -118,7 +143,7 @@ class BookCollectionList extends StatelessWidget {
                             }),
                           ),
                           Container(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.black,
                               shape: BoxShape.circle,
                             ),

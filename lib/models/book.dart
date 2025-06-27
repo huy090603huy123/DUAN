@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:warehouse/utils/helper.dart';
+import 'package:warehouse/utils/helper.dart'; // Giả sử bạn có tệp helper này
 
 class Book {
   final String id; // ID của document trong Firestore
@@ -8,6 +8,7 @@ class Book {
   final String bio;
   final String imageUrl;
   final DateTime? publishedDate;
+  final int quantity; // <-- THÊM MỚI: Số lượng sách
   // Thêm các trường để lưu trữ ID của các document liên quan
   final List<String> authorIds;
   final List<String> genreIds;
@@ -19,6 +20,7 @@ class Book {
     required this.bio,
     required this.imageUrl,
     this.publishedDate,
+    this.quantity = 0, // <-- CẬP NHẬT: Thêm vào constructor với giá trị mặc định
     this.authorIds = const [],
     this.genreIds = const [],
   });
@@ -37,6 +39,7 @@ class Book {
       publishedDate: data['publishedDate'] != null
           ? (data['publishedDate'] as Timestamp).toDate()
           : null,
+      quantity: data['quantity'] ?? 0, // <-- CẬP NHẬT: Đọc số lượng từ Firestore
       // Đọc mảng các ID, chuyển đổi từ List<dynamic> thành List<String>
       authorIds: List<String>.from(data['authorIds'] ?? []),
       genreIds: List<String>.from(data['genreIds'] ?? []),
@@ -56,6 +59,7 @@ class Book {
           : DateTime.parse(
         data['bk_published_date'],
       ),
+      quantity: data['bk_quantity'] ?? 0, // <-- CẬP NHẬT: Thêm cả vào đây nếu bạn vẫn dùng
     );
   }
 
@@ -67,6 +71,7 @@ class Book {
       'bio': bio,
       'imageUrl': imageUrl,
       'publishedDate': publishedDate,
+      'quantity': quantity, // <-- CẬP NHẬT: Thêm số lượng khi ghi dữ liệu
       'authorIds': authorIds,
       'genreIds': genreIds,
     };
