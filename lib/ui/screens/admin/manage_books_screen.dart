@@ -12,9 +12,20 @@ class ManageBooksScreen extends StatelessWidget {
     final publishesProvider = Provider.of<PublishesProvider>(context, listen: false);
 
     return Scaffold(
+      // SỬA LỖI: Thêm màu nền sáng để khắc phục lỗi nền đen
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text('Quản lý Sách'),
-        backgroundColor: Colors.indigo[800],
+        // THIẾT KẾ LẠI: Thêm hiệu ứng gradient cho AppBar để đồng bộ
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withOpacity(0.7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
       body: StreamBuilder<List<Book>>(
         stream: publishesProvider.booksStream,
@@ -26,75 +37,74 @@ class ManageBooksScreen extends StatelessWidget {
             return Center(child: Text('Đã có lỗi xảy ra: ${snapshot.error}'));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Chưa có sách nào.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.book_online_outlined, size: 80, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text('Chưa có sách nào', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                ],
+              ),
+            );
           }
 
           final books = snapshot.data!;
-          return ListView.builder(
+          // THIẾT KẾ LẠI: Sử dụng ListView.separated để có khoảng cách giữa các Card
+          return ListView.separated(
+            padding: const EdgeInsets.all(12.0),
             itemCount: books.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (ctx, index) {
               final book = books[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: (book.imageUrl != null && book.imageUrl!.isNotEmpty)
-                      ? NetworkImage(book.imageUrl!)
-                      : null,
-                  child: (book.imageUrl == null || book.imageUrl!.isEmpty)
-                      ? const Icon(Icons.book)
-                      : null,
-                ),
-                title: Text(book.name),
-                subtitle: Text('ID: ${book.id}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => EditBookScreen(book: book),
-                          ),
-                        );
-                      },
+              // THIẾT KẾ LẠI: Bọc mỗi mục trong một Card
+              return Card(
+                color: Colors.white,
+                elevation: 3,
+                shadowColor: Colors.black.withOpacity(0.15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: ListTile(
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: (book.imageUrl != null && book.imageUrl!.isNotEmpty)
+                          ? Image.network(
+                        book.imageUrl!,
+                        width: 50,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_,__,___) => const Icon(Icons.broken_image, size: 40),
+                      )
+                          : Container(
+                        width: 50,
+                        height: 70,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.book, color: Colors.grey),
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () async {
-                        // Hiển thị hộp thoại xác nhận trước khi xóa
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Xác nhận'),
-                            content: Text('Bạn có chắc chắn muốn xóa sách "${book.name}" không?'),
-                            actions: <Widget>[
-                              TextButton(
-                                child: const Text('Hủy'),
-                                onPressed: () => Navigator.of(ctx).pop(false),
+                    title: Text(book.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('Số lượng: ${book.quantity}', style: TextStyle(color: Colors.grey.shade600)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => EditBookScreen(book: book),
                               ),
-                              TextButton(
-                                child: const Text('Xóa', style: TextStyle(color: Colors.red)),
-                                onPressed: () => Navigator.of(ctx).pop(true),
-                              ),
-                            ],
-                          ),
-                        );
-
-                        if (confirm == true) {
-                          try {
-                            await publishesProvider.deleteBook(book.id);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Đã xóa sách "${book.name}"'))
                             );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Xóa sách thất bại: $e'))
-                            );
-                          }
-                        }
-                      },
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          onPressed: () => _showDeleteConfirmation(context, publishesProvider, book),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             },
@@ -105,14 +115,53 @@ class ManageBooksScreen extends StatelessWidget {
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              // Đi đến màn hình Edit/Add nhưng không truyền sách nào (tức là thêm mới)
               builder: (context) => const EditBookScreen(),
             ),
           );
         },
+        backgroundColor: Theme.of(context).primaryColor,
         child: const Icon(Icons.add),
         tooltip: 'Thêm sách mới',
       ),
     );
+  }
+
+  // Tách hàm xác nhận xóa ra cho gọn gàng
+  void _showDeleteConfirmation(BuildContext context, PublishesProvider provider, Book book) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc chắn muốn xóa sách "${book.name}" không? Thao tác này không thể hoàn tác.'),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Hủy'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Xóa'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await provider.deleteBook(book.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Đã xóa sách "${book.name}"'), backgroundColor: Colors.green)
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Xóa sách thất bại: $e'), backgroundColor: Colors.red)
+          );
+        }
+      }
+    }
   }
 }
