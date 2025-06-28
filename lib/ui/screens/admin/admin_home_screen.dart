@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../providers/members_provider.dart';
 import '../../../ui/screens/login_screen.dart';
+import 'admin_requests_screen.dart';
 import 'manage_authors_screen.dart';
 import 'manage_books_screen.dart';
 
@@ -67,6 +68,17 @@ class AdminHomeScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ManageAuthorsScreen()),
+              );
+            },
+          ),
+          _buildCard(
+            context,
+            'Duyệt Yêu Cầu',
+            Icons.checklist_rtl, // Icon phù hợp cho việc duyệt
+                () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdminRequestsScreen()),
               );
             },
           ),

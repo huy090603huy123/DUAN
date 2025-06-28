@@ -8,6 +8,8 @@ import 'package:warehouse/models/genre.dart';
 import 'package:warehouse/models/member.dart'; // Đổi tên thành User hoặc giữ nguyên nếu muốn
 import 'package:warehouse/models/member_book_issue.dart';
 
+import '../../models/borrow_request.dart';
+
 // Giả định rằng bạn đã cập nhật các model của mình với phương thức `fromFirestore`
 // Ví dụ: Book.fromFirestore(doc), Author.fromFirestore(doc), ...
 
@@ -242,7 +244,61 @@ class DataRepository {
     return _firestore.collection('book_issues').add(data);
   }
 
+  Future<void> createBorrowRequest(Map<String, dynamic> requestData) {
+    return _firestore.collection('borrow_requests').add(requestData);
+  }
 
+  /// Lấy stream của tất cả các yêu cầu mượn sách (dành cho admin)
+  Stream<List<BorrowRequest>> getBorrowRequests() {
+    return _firestore
+        .collection('borrow_requests')
+        .orderBy('requestDate', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => BorrowRequest.fromFirestore(doc))
+        .toList());
+  }
+
+  /// Phê duyệt yêu cầu mượn sách (sử dụng Transaction)
+  Future<void> approveBorrowRequest({
+    required String requestId,
+    required String bookId,
+    required Map<String, dynamic> issueData,
+  }) {
+    final requestRef = _firestore.collection('borrow_requests').doc(requestId);
+    final bookRef = _firestore.collection('books').doc(bookId);
+    final issueRef = _firestore.collection('book_issues').doc();
+
+    return _firestore.runTransaction((transaction) async {
+      final bookSnapshot = await transaction.get(bookRef);
+
+      if (!bookSnapshot.exists) {
+        throw Exception("Sách không tồn tại!");
+      }
+
+      final currentQuantity = bookSnapshot.data()?['quantity'] ?? 0;
+      if (currentQuantity <= 0) {
+        throw Exception("Sách đã hết hàng!");
+      }
+
+      // 1. Cập nhật trạng thái yêu cầu -> approved
+      transaction.update(requestRef, {'status': 'approved'});
+
+      // 2. Giảm số lượng sách đi 1
+      transaction.update(bookRef, {'quantity': FieldValue.increment(-1)});
+
+      // 3. Tạo một bản ghi mượn sách mới
+      transaction.set(issueRef, issueData);
+    });
+  }
+
+  /// Từ chối yêu cầu mượn sách
+  Future<void> rejectBorrowRequest(String requestId) {
+    return _firestore
+        .collection('borrow_requests')
+        .doc(requestId)
+        .update({'status': 'rejected'});
+  }
 
   // Trả sách và để lại đánh giá (sử dụng Batched Write để đảm bảo tính toàn vẹn)
   Future<void> returnBook({

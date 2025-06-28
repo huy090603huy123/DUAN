@@ -1,85 +1,106 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../models/book.dart'; // Giữ nguyên để tránh lỗi nếu bạn tái sử dụng model Book
+
 
 class DataSeeder {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> seedDatabase() async {
-    print('Bắt đầu quá trình seeding...');
+    print("Bắt đầu thêm dữ liệu mẫu...");
 
-    await _seedCollection(
-      collectionName: 'books',
-      dataList: _getSampleBooks(),
-      docIdProvider: (book) => book.id,
-      toJsonConverter: (book) => book.toJson(),
-    );
-
-    print('Quá trình seeding hoàn tất.');
-  }
-
-  Future<void> _seedCollection<T>({
-    required String collectionName,
-    required List<T> dataList,
-    required String Function(T) docIdProvider,
-    required Map<String, dynamic> Function(T) toJsonConverter,
-  }) async {
-    final collectionRef = _firestore.collection(collectionName);
-    int seededCount = 0;
-
-    for (final item in dataList) {
-      final docId = docIdProvider(item);
-      final docRef = collectionRef.doc(docId);
-      final doc = await docRef.get();
-
-      if (!doc.exists) {
-        await docRef.set(toJsonConverter(item));
-        seededCount++;
-      }
+    // Kiểm tra xem dữ liệu đã tồn tại chưa để tránh thêm lại
+    final booksSnapshot = await _firestore.collection('books').limit(1).get();
+    if (booksSnapshot.docs.isNotEmpty) {
+      print("Dữ liệu đã tồn tại. Bỏ qua việc thêm dữ liệu mẫu.");
+      return;
     }
 
-    if (seededCount > 0) {
-      print('Đã ghi $seededCount mục mới vào collection "$collectionName".');
-    } else {
-      print('Collection "$collectionName" đã có sẵn dữ liệu, không có gì thay đổi.');
-    }
-  }
+    // Sử dụng WriteBatch để thực hiện nhiều thao tác ghi cùng lúc
+    final WriteBatch batch = _firestore.batch();
 
-  static List<Book> _getSampleBooks() {
-    return [
-      Book(
-        id: 'tp-link-router-archer-ax20',
-        name: 'Router TP-Link Archer AX20',
-        rating: 5,
-        bio: 'Thiết bị phát Wi-Fi chuẩn Wi-Fi 6 tốc độ cao, phù hợp cho hộ gia đình và văn phòng vừa. Hỗ trợ nhiều kết nối đồng thời, ổn định và bảo mật.',
-        imageUrl: 'https://m.media-amazon.com/images/I/61R7fHUNYUL._AC_SL1500_.jpg',
-        publishedDate: DateTime(2023, 3, 1),
-        quantity: 8,
-        authorIds: ['tp-link'], // Giữ nguyên tên biến
-        genreIds: ['router', 'wifi-6'],
-      ),
-      Book(
-        id: 'cisco-switch-sg350-28',
-        name: 'Switch Cisco SG350-28',
-        rating: 4,
-        bio: 'Thiết bị chuyển mạch Layer 3 có 28 cổng Gigabit, quản lý thông minh, phù hợp cho doanh nghiệp nhỏ và vừa.',
-        imageUrl: 'https://m.media-amazon.com/images/I/81QhhXyZtzL._AC_SL1500_.jpg',
-        publishedDate: DateTime(2022, 5, 10),
-        quantity: 5,
-        authorIds: ['cisco'],
-        genreIds: ['switch', 'layer3'],
-      ),
-      Book(
-        id: 'unifi-ap-ac-pro',
-        name: 'Access Point UniFi AC Pro',
-        rating: 5,
-        bio: 'Thiết bị phát Wi-Fi chuyên dụng cho doanh nghiệp, hỗ trợ nhiều người dùng, quản lý tập trung bằng UniFi Controller.',
-        imageUrl: 'https://m.media-amazon.com/images/I/71sQ3NnF+DL._AC_SL1500_.jpg',
-        publishedDate: DateTime(2021, 11, 5),
-        quantity: 12,
-        authorIds: ['ubiquiti'],
-        genreIds: ['access-point', 'enterprise'],
-      ),
-    ];
+    // --- Thêm Thể loại (Genres) ---
+    final genreRef1 = _firestore.collection('genres').doc();
+    batch.set(genreRef1, {'name': 'Router'});
+
+    final genreRef2 = _firestore.collection('genres').doc();
+    batch.set(genreRef2, {'name': 'Switch'});
+
+    final genreRef3 = _firestore.collection('genres').doc();
+    batch.set(genreRef3, {'name': 'Firewall'});
+
+
+    // --- Thêm Tác giả (Authors) ---
+    final authorRef1 = _firestore.collection('authors').doc();
+    batch.set(authorRef1, {
+      'firstName': 'Cisco',
+      'lastName': 'Herbert',
+      'age': 65,
+      'country': 'USA',
+      'rating': 5,
+      'imageUrl': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Cisco_logo_blue_2016.svg/1200px-Cisco_logo_blue_2016.svg.png',
+    });
+
+    final authorRef2 = _firestore.collection('authors').doc();
+    batch.set(authorRef2, {
+      'firstName': 'George',
+      'lastName': 'Orwell',
+      'age': 46,
+      'country': 'UK',
+      'rating': 5,
+      'imageUrl': 'https://upload.wikimedia.org/wikipedia/commons/7/7e/George_Orwell_press_photo.jpg',
+    });
+
+    final authorRef3 = _firestore.collection('authors').doc();
+    batch.set(authorRef3, {
+      'firstName': 'Agatha',
+      'lastName': 'Christie',
+      'age': 85,
+      'country': 'UK',
+      'rating': 5,
+      'imageUrl': 'https://upload.wikimedia.org/wikipedia/commons/c/cf/Agatha_Christie.png',
+    });
+
+
+    // --- Thêm Sách (Books) ---
+    final bookRef1 = _firestore.collection('books').doc();
+    batch.set(bookRef1, {
+      'name': 'Cisco Catalyst 9300',
+      'bio': 'Switch lớp enterprise mạnh mẽ dành cho doanh nghiệp lớn, hỗ trợ xếp chồng và bảo mật nâng cao.',
+      'rating': 5,
+      'publishedDate': Timestamp.fromDate(DateTime(1965, 8, 1)),
+      'imageUrl': 'https://www.cisco.com/c/dam/en/us/products/collateral/switches/catalyst-9300-series-switches/catalyst-9300-48-port-data-only-stackable-switches.jpg',
+      'authorIds': [authorRef1.id],
+      'genreIds': [genreRef1.id],
+      'quantity': 10, // <-- Bổ sung
+    });
+
+    final bookRef2 = _firestore.collection('books').doc();
+    batch.set(bookRef2, {
+      'name': '1984',
+      'bio': 'Một cái nhìn đáng sợ về một xã hội toàn trị trong tương lai.',
+      'rating': 5,
+      'publishedDate': Timestamp.fromDate(DateTime(1949, 6, 8)),
+      'imageUrl': 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1348990566l/5470.jpg',
+      'authorIds': [authorRef2.id],
+      'genreIds': [genreRef1.id, genreRef2.id],
+      'quantity': 15, // <-- Bổ sung
+    });
+
+    final bookRef3 = _firestore.collection('books').doc();
+    batch.set(bookRef3, {
+      'name': 'Án mạng trên sông Nile',
+      'bio': 'Thám tử Hercule Poirot phải tìm ra kẻ giết người trên một chuyến du thuyền sang trọng.',
+      'rating': 4,
+      'publishedDate': Timestamp.fromDate(DateTime(1937, 11, 1)),
+      'imageUrl': 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1388212151l/131359.jpg',
+      'authorIds': [authorRef3.id],
+      'genreIds': [genreRef3.id],
+      'quantity': 20, // <-- Bổ sung
+    });
+
+    // Thực thi tất cả các lệnh ghi
+    await batch.commit();
+
+    print("Đã thêm dữ liệu mẫu thành công!");
   }
 }

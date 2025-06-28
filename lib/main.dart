@@ -127,7 +127,7 @@ class InitialApp extends StatelessWidget {
         return MaterialApp(
           key: uniqueKey,
           debugShowCheckedModeBanner: false,
-          title: 'Library App',
+          title: 'Warehouse App',
           theme: themeData,
           home: _getHomeScreen(auth),
           routes: {
