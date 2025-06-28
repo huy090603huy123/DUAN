@@ -45,6 +45,8 @@ dependencies:
   wave: ^0.2.2
   http: ^1.2.1
   intl: ^0.19.0
+  image_picker: ^1.1.2
+  cloudinary_public: ^0.23.1
 
 dev_dependencies:
   flutter_test:
