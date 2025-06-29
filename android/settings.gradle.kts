@@ -1,3 +1,5 @@
+// File: android/settings.gradle.kts
+
 pluginManagement {
     val flutterSdkPath = run {
         val properties = java.util.Properties()
@@ -19,10 +21,11 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.7.0" apply false
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services") version("4.3.15") apply false
-    // END: FlutterFire Configuration
+    id("com.google.gms.google-services") version "4.3.15" apply false
     id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+
+    // --- THÊM KHAI BÁO PLUGIN VỚI VERSION TẠI ĐÂY ---
+    id("com.onesignal.androidsdk.onesignal-gradle-plugin") version "0.14.0" apply false
 }
 
 include(":app")
