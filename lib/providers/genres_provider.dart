@@ -19,7 +19,33 @@ class GenresProvider with ChangeNotifier {
       : _dataRepository = dataRepository {
     _initializeData();
   }
+  Future<void> addGenre(Map<String, dynamic> data) async {
+    try {
+      await _dataRepository.addGenre(data);
+      // notifyListeners() sẽ được gọi tự động bởi stream listener
+    } catch (e) {
+      print("Lỗi khi thêm thể loại: $e");
+      rethrow;
+    }
+  }
 
+  Future<void> updateGenre(String genreId, Map<String, dynamic> data) async {
+    try {
+      await _dataRepository.updateGenre(genreId, data);
+    } catch (e) {
+      print("Lỗi khi cập nhật thể loại: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> deleteGenre(String genreId) async {
+    try {
+      await _dataRepository.deleteGenre(genreId);
+    } catch (e) {
+      print("Lỗi khi xóa thể loại: $e");
+      rethrow;
+    }
+  }
   // --- GETTERS: Cung cấp dữ liệu cho UI một cách an toàn ---
 
   /// Trả về một danh sách các thể loại không thể bị thay đổi từ bên ngoài.

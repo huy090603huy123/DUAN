@@ -100,11 +100,7 @@ class DataRepository {
 
   // --- PHƯƠNG THỨC QUẢN LÝ THỂ LOẠI (GENRES) ---
 
-  Stream<List<Genre>> genresStream() {
-    return _firestore.collection('genres').snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => Genre.fromFirestore(doc)).toList();
-    });
-  }
+
 
   // Lấy sách thuộc về một thể loại cụ thể
   // Giả định model 'books' có một trường mảng 'genreIds'
@@ -120,11 +116,7 @@ class DataRepository {
 
   // --- PHƯƠNG THỨC QUẢN LÝ TÁC GIẢ (AUTHORS) ---
 
-  Stream<List<Author>> authorsStream() {
-    return _firestore.collection('authors').snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => Author.fromFirestore(doc)).toList();
-    });
-  }
+ 
 
   Stream<Author> authorDetailsStream(String authorId) {
     return _firestore
@@ -244,6 +236,25 @@ class DataRepository {
     return _firestore.collection('book_issues').add(data);
   }
 
+  Stream<List<Genre>> genresStream() {
+    return _firestore.collection('genres').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Genre.fromFirestore(doc)).toList();
+    });
+  }
+
+  Future<void> addGenre(Map<String, dynamic> data) {
+    return _firestore.collection('genres').add(data);
+  }
+
+  Future<void> updateGenre(String genreId, Map<String, dynamic> data) {
+    return _firestore.collection('genres').doc(genreId).update(data);
+  }
+
+  Future<void> deleteGenre(String genreId) {
+    return _firestore.collection('genres').doc(genreId).delete();
+  }
+
+
   Future<void> createBorrowRequest(Map<String, dynamic> requestData) {
     return _firestore.collection('borrow_requests').add(requestData);
   }
@@ -258,6 +269,7 @@ class DataRepository {
         .map((doc) => BorrowRequest.fromFirestore(doc))
         .toList());
   }
+
 
   /// Phê duyệt yêu cầu mượn sách (sử dụng Transaction)
   Future<void> approveBorrowRequest({
@@ -449,7 +461,27 @@ class DataRepository {
     await _firestore.collection('books').doc(bookId).delete();
   }
 
+  Stream<List<Author>> authorsStream() {
+    return _firestore.collection('authors').snapshots().map((snapshot) {
+      // Chuyển đổi mỗi document thành một đối tượng Author
+      return snapshot.docs.map((doc) => Author.fromFirestore(doc)).toList();
+    });
+  }
 
+// Thêm một tác giả mới
+  Future<void> addAuthor(Map<String, dynamic> data) {
+    return _firestore.collection('authors').add(data);
+  }
+
+// Cập nhật thông tin một tác giả
+  Future<void> updateAuthor(String authorId, Map<String, dynamic> data) {
+    return _firestore.collection('authors').doc(authorId).update(data);
+  }
+
+// Xóa một tác giả
+  Future<void> deleteAuthor(String authorId) {
+    return _firestore.collection('authors').doc(authorId).delete();
+  }
 
 
 
