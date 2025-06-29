@@ -6,6 +6,7 @@ import java.io.FileInputStream
 plugins {
     id("com.onesignal.androidsdk.onesignal-gradle-plugin")
     id("com.android.application")
+    
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
     // END: FlutterFire Configuration
