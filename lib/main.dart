@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:warehouse/providers/authors_provider.dart';
 import 'services/data_seeder.dart';
 import 'firebase_options.dart';
 import 'services/repositories/data_repository.dart';
@@ -53,6 +54,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => PublishesProvider(dataRepository: DataRepository.instance),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AuthorsProvider(DataRepository.instance),
         ),
         ChangeNotifierProxyProvider<MembersProvider, IssuesProvider>(
           create: (context) => IssuesProvider(

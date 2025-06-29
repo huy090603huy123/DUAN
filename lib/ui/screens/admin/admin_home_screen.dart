@@ -6,6 +6,7 @@ import '../../../ui/screens/login_screen.dart';
 import 'admin_requests_screen.dart';
 import 'manage_authors_screen.dart';
 import 'manage_books_screen.dart';
+import 'manage_genres_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -57,6 +58,17 @@ class AdminHomeScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ManageBooksScreen()),
+              );
+            },
+          ),
+          _buildCard(
+            context,
+            'Manage Genres', // Tên chức năng
+            Icons.category,    // Icon phù hợp
+                () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ManageGenresScreen()), // Điều hướng đến màn hình mới
               );
             },
           ),

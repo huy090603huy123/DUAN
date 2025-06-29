@@ -46,10 +46,7 @@ class BookCollectionsSheet extends StatelessWidget {
               const SizedBox(height: 16),
               _buildStatsGrid(context),
               const SizedBox(height: 32),
-
-              // *** THÊM MỚI: Biểu đồ đường (Line Chart) ***
               _buildBorrowTrendChart(context),
-
               const SizedBox(height: 32),
               _buildGenrePieChart(context),
               const SizedBox(height: 32),
@@ -75,7 +72,8 @@ class BookCollectionsSheet extends StatelessWidget {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
-          childAspectRatio: 1.8,
+          // *** SỬA LỖI: Thay đổi tỉ lệ để thẻ cao hơn, có nhiều không gian hơn ***
+          childAspectRatio: 1.6,
           children: [
             _buildStatCard(context: context, title: 'Tổng thiết bị', value: stats.totalInventory.toString(), icon: Icons.inventory_2_outlined, color: Colors.blue),
             _buildStatCard(context: context, title: 'Đang mượn', value: stats.currentlyBorrowed.toString(), icon: Icons.person_pin_circle_outlined, color: Colors.orange),
@@ -84,6 +82,64 @@ class BookCollectionsSheet extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  // --- WIDGET STAT CARD ĐƯỢC THIẾT KẾ LẠI HOÀN TOÀN ĐỂ CHỐNG TRÀN VIỀN ---
+  Widget _buildStatCard({
+    required BuildContext context,
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      padding: const EdgeInsets.all(12), // Giảm padding một chút
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dùng Expanded để tiêu đề có thể xuống dòng nếu quá dài
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2, // Cho phép tiêu đề có tối đa 2 dòng
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(icon, color: color, size: 24),
+            ],
+          ),
+          const Spacer(), // Dùng Spacer để đẩy số liệu xuống dưới cùng
+          // *** SỬA LỖI: Dùng FittedBox để text tự động co lại cho vừa khung ***
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 32, // Có thể tăng size vì FittedBox sẽ xử lý
+              ),
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -105,7 +161,6 @@ class BookCollectionsSheet extends StatelessWidget {
             builder: (context, provider, _) {
               return Column(
                 children: [
-                  // Các nút chuyển đổi Ngày/Tuần/Tháng
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -117,7 +172,6 @@ class BookCollectionsSheet extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  // Biểu đồ
                   SizedBox(
                     height: 180,
                     child: provider.stats.borrowTrend.isEmpty
@@ -149,8 +203,7 @@ class BookCollectionsSheet extends StatelessWidget {
         decoration: BoxDecoration(
             color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Theme.of(context).primaryColor)
-        ),
+            border: Border.all(color: Theme.of(context).primaryColor)),
         child: Text(
           text,
           style: TextStyle(
@@ -162,7 +215,6 @@ class BookCollectionsSheet extends StatelessWidget {
     );
   }
 
-  /// Widget con để xây dựng biểu đồ tròn với chú thích bên dưới
   Widget _buildGenrePieChart(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
@@ -213,9 +265,7 @@ class BookCollectionsSheet extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: genreStats.map((stat) {
-                      final percentage = totalBorrowed > 0
-                          ? (stat.count / totalBorrowed * 100).toStringAsFixed(1)
-                          : "0.0";
+                      final percentage = totalBorrowed > 0 ? (stat.count / totalBorrowed * 100).toStringAsFixed(1) : "0.0";
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Row(
@@ -237,18 +287,169 @@ class BookCollectionsSheet extends StatelessWidget {
     );
   }
 
-  // --- Các widget con khác không thay đổi ---
-  Widget _buildStatCard({ required BuildContext context, required String title, required String value, required IconData icon, required Color color, }) {
-    return Container( decoration: BoxDecoration( color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withOpacity(0.3)), ), padding: const EdgeInsets.all(16), child: Column( crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [ Row( mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [ Flexible( child: Text( title, style: TextStyle( color: color, fontWeight: FontWeight.w600, fontSize: 14, ), overflow: TextOverflow.ellipsis, ), ), Icon(icon, color: color, size: 24), ], ), Text( value, style: TextStyle( color: color, fontWeight: FontWeight.bold, fontSize: 28, ), ), ], ), );
-  }
   Widget _buildTopBorrowedChart(BuildContext context) {
-    return Padding( padding: EdgeInsets.symmetric(horizontal: Helper.hPadding), child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ Text( 'Thiết bị được mượn nhiều nhất', style: Theme.of(context).textTheme.titleLarge?.copyWith( fontWeight: FontWeight.bold, ), ), const SizedBox(height: 16), Consumer<StatisticsProvider>( builder: (context, statsProvider, _) { final topBooks = statsProvider.stats.topBorrowedBooks; if (topBooks.isEmpty) { return const SizedBox( height: 150, child: Center( child: Text('Chưa có dữ liệu thống kê.'), ), ); } final maxCount = topBooks.isNotEmpty ? topBooks.map((e) => e.borrowCount).reduce((a, b) => a > b ? a : b) : 1; return Column( children: topBooks.map((book) { return _buildChartBar( context: context, label: book.bookName, value: book.borrowCount, maxValue: maxCount, ); }).toList(), ); }, ), ], ), );
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Thiết bị được mượn nhiều nhất',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Consumer<StatisticsProvider>(
+            builder: (context, statsProvider, _) {
+              final topBooks = statsProvider.stats.topBorrowedBooks;
+              if (topBooks.isEmpty) {
+                return const SizedBox(
+                  height: 150,
+                  child: Center(
+                    child: Text('Chưa có dữ liệu thống kê.'),
+                  ),
+                );
+              }
+              final maxCount = topBooks.isNotEmpty ? topBooks.map((e) => e.borrowCount).reduce((a, b) => a > b ? a : b) : 1;
+              return Column(
+                children: topBooks.map((book) {
+                  return _buildChartBar(
+                    context: context,
+                    label: book.bookName,
+                    value: book.borrowCount,
+                    maxValue: maxCount,
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
-  Widget _buildChartBar({ required BuildContext context, required String label, required int value, required int maxValue, }) {
-    final ratio = maxValue > 0 ? value / maxValue : 0.0; return Padding( padding: const EdgeInsets.symmetric(vertical: 6.0), child: Row( children: [ SizedBox( width: 100, child: Text( label, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500), ), ), const SizedBox(width: 8), Expanded( child: ClipRRect( borderRadius: BorderRadius.circular(5), child: Stack( children: [ Container( height: 20, decoration: BoxDecoration( color: Colors.grey.shade200, ), ), LayoutBuilder( builder: (ctx, constraints) { return AnimatedContainer( duration: const Duration(milliseconds: 500), curve: Curves.easeInOut, width: constraints.maxWidth * ratio, height: 20, decoration: BoxDecoration( color: Theme.of(context).primaryColor, ), ); }, ), ], ), ), ), const SizedBox(width: 8), SizedBox( width: 30, child: Text( value.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right, ), ), ], ), );
+
+  Widget _buildChartBar({
+    required BuildContext context,
+    required String label,
+    required int value,
+    required int maxValue,
+  }) {
+    final ratio = maxValue > 0 ? value / maxValue : 0.0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: Stack(
+                children: [
+                  Container(
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                    ),
+                  ),
+                  LayoutBuilder(builder: (ctx, constraints) {
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                      width: constraints.maxWidth * ratio,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 30,
+            child: Text(
+              value.toString(),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
   }
+
   Widget _buildBookLists(BuildContext context) {
-    final publishesProvider = Provider.of<PublishesProvider>(context, listen: false); return Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ Padding( padding: EdgeInsets.symmetric(horizontal: Helper.hPadding), child: Text( 'Mới phát hành', style: Theme.of(context).textTheme.titleLarge?.copyWith( color: Theme.of(context).primaryColor, ), ), ), const SizedBox(height: 8), StreamBuilder<List<Book>>( stream: publishesProvider.getTop5NewBooks(), builder: (context, snapshot) { if (snapshot.connectionState == ConnectionState.waiting) { return const SizedBox(height: 260, child: Center(child: CircularProgressIndicator())); } if (snapshot.hasError) { return SizedBox(height: 260, child: Center(child: Text('Lỗi: ${snapshot.error}'))); } if (!snapshot.hasData || snapshot.data!.isEmpty) { return const SizedBox(height: 260, child: Center(child: Text('Không có sách mới.'))); } final books = snapshot.data!; return BookCollectionList(books: books); }, ), const SizedBox(height: 24), Padding( padding: EdgeInsets.symmetric(horizontal: Helper.hPadding), child: Text( 'Đánh giá cao nhất', style: Theme.of(context).textTheme.titleLarge?.copyWith( color: Theme.of(context).primaryColor, ), ), ), const SizedBox(height: 8), StreamBuilder<List<Book>>( stream: publishesProvider.getTop5RatedBooks(), builder: (context, snapshot) { if (snapshot.connectionState == ConnectionState.waiting) { return const SizedBox(height: 260, child: Center(child: CircularProgressIndicator())); } if (snapshot.hasError) { return SizedBox(height: 260, child: Center(child: Text('Lỗi: ${snapshot.error}'))); } if (!snapshot.hasData || snapshot.data!.isEmpty) { return const SizedBox(height: 260, child: Center(child: Text('Chưa có sách nào được đánh giá.'))); } final books = snapshot.data!; return BookCollectionList(books: books); }, ), const SizedBox(height: 24), ], );
+    final publishesProvider = Provider.of<PublishesProvider>(context, listen: false);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
+          child: Text(
+            'Mới phát hành',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        StreamBuilder<List<Book>>(
+          stream: publishesProvider.getTop5NewBooks(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(height: 260, child: Center(child: CircularProgressIndicator()));
+            }
+            if (snapshot.hasError) {
+              return SizedBox(height: 260, child: Center(child: Text('Lỗi: ${snapshot.error}')));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const SizedBox(height: 260, child: Center(child: Text('Không có sách mới.')));
+            }
+            final books = snapshot.data!;
+            return BookCollectionList(books: books);
+          },
+        ),
+        const SizedBox(height: 24),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: Helper.hPadding),
+          child: Text(
+            'Đánh giá cao nhất',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        StreamBuilder<List<Book>>(
+          stream: publishesProvider.getTop5RatedBooks(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(height: 260, child: Center(child: CircularProgressIndicator()));
+            }
+            if (snapshot.hasError) {
+              return SizedBox(height: 260, child: Center(child: Text('Lỗi: ${snapshot.error}')));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const SizedBox(height: 260, child: Center(child: Text('Chưa có sách nào được đánh giá.')));
+            }
+            final books = snapshot.data!;
+            return BookCollectionList(books: books);
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
   }
 }
 
@@ -270,6 +471,7 @@ class _PieChartPainter extends CustomPainter {
       startAngle += sweepAngle;
     }
   }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
@@ -345,3 +547,4 @@ class _LineChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(_LineChartPainter oldDelegate) => true;
 }
+
