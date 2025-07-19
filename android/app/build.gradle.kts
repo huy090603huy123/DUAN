@@ -1,4 +1,5 @@
 // --- THÊM 2 DÒNG IMPORT NÀY VÀO ĐẦU FILE ---
+import com.android.build.gradle.ProguardFiles.getDefaultProguardFile
 import java.util.Properties
 import java.io.FileInputStream
 // ------------------------------------------
@@ -58,6 +59,11 @@ android {
 
     buildTypes {
         release {
+            isMinifyEnabled = true // Kích hoạt việc thu nhỏ mã nguồn và obfuscation
+            isShrinkResources = true // Kích hoạt việc loại bỏ các tài nguyên không sử dụng
+
+            // Chỉ định các tệp cấu hình ProGuard
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("release")
